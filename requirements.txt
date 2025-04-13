@@ -4,6 +4,6 @@ pillow==11.1.0
 torch==2.6.0
 torchvision==0.21.0
 timm==0.9.5
-opencv-python-headless==4.8.0.74
+opencv-python-headless>=4.10.0.84
 requests==2.31.0
 gdown==4.7.3
