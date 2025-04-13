@@ -1,4 +1,4 @@
-import streamlit as st
+import pathlib, gdown, streamlit as st
 import os
 import requests
 import sys
@@ -18,41 +18,32 @@ if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Add model downloading functionality
-@st.cache_resource
-def download_model():
-    model_path = "model/best_swin_transformer_model.pth"
-    # Create directory if it doesn't exist
-    os.makedirs(os.path.dirname(model_path), exist_ok=True)
-    
-    # Only download if model doesn't exist
-    if not os.path.exists(model_path):
-        try:
-            with st.spinner("Downloading model file... This may take a few minutes."):
-                # Install gdown if needed
-                import subprocess
-                import sys
-                subprocess.check_call([sys.executable, "-m", "pip", "install", "gdown"])
-                
-                import gdown
-                
-                # Extract file ID from your URL
-                file_id = "19JPcDF8NEJFkFt41WTBbw3TjEDrxq0Xz"
-                
-                # Download the file
-                gdown.download(id=file_id, output=model_path, quiet=False)
-                
-                st.success(f"Model downloaded successfully to {model_path}")
-        except Exception as e:
-            st.error(f"Error downloading model: {e}")
-            return None
-    
-    return model_path
+@st.cache_resource(show_spinner=False)
+def download_model() -> pathlib.Path:
+    """
+    Ensure the Swin‑Transformer weight file is on disk and return its Path.
+    The file is pulled once from Google Drive and then cached by Streamlit.
+    """
+    FILE_ID = "19JPcDF8NEJFkFt41WTBbw3TjEDrxq0Xz"
+    URL     = f"https://drive.google.com/uc?id={FILE_ID}"
+
+    weight_path = pathlib.Path("model/best_swin_transformer_model.pth")
+    weight_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not weight_path.exists():
+        with st.spinner("Downloading Swin‑Transformer weights…"):
+            dst = gdown.download(URL, str(weight_path), quiet=False)
+            if dst is None or not weight_path.exists():
+                raise RuntimeError("Download failed or Drive link is private.")
+        st.success("Model downloaded successfully.")
+
+    return weight_path
 
 # Import the DeepfakeDetector class from the detector module
 class DeepfakeDetector:
     """Service for detecting deepfakes in video files using the loaded Swin Transformer model"""
     
-    def __init__(self, model_path: str = "model/best_swin_transformer_model.pth", device: str = None):
+    def __init__(self, device: str | None = None):
         """
         Initialize the deepfake detector with the PyTorch Swin Transformer model
         
@@ -60,8 +51,8 @@ class DeepfakeDetector:
             model_path: Path to the PyTorch model file (.pth)
             device: Device to run the model on ('cuda' or 'cpu')
         """
-        self.model_path = model_path
-        self.device = device if device else ('cuda' if torch.cuda.is_available() else 'cpu')
+        self.model_path = download_model()        # <‑‑ ensures file exists
+        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
         st.write(f"Using device: {self.device}")
         self.model = self._load_model()
     
