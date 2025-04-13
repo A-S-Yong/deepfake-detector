@@ -26,21 +26,25 @@ def download_model():
     
     # Only download if model doesn't exist
     if not os.path.exists(model_path):
-        with st.spinner("Downloading model file... This may take a few minutes."):
-            # Replace with your actual model URL
-            model_url = "https://drive.google.com/file/d/19JPcDF8NEJFkFt41WTBbw3TjEDrxq0Xz/view?usp=drive_link"
-            try:
-                response = requests.get(model_url, stream=True)
-                response.raise_for_status()
+        try:
+            with st.spinner("Downloading model file... This may take a few minutes."):
+                # Install gdown if needed
+                import subprocess
+                import sys
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "gdown"])
                 
-                # Write model file
-                with open(model_path, "wb") as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        f.write(chunk)
+                import gdown
+                
+                # Extract file ID from your URL
+                file_id = "19JPcDF8NEJFkFt41WTBbw3TjEDrxq0Xz"
+                
+                # Download the file
+                gdown.download(id=file_id, output=model_path, quiet=False)
+                
                 st.success(f"Model downloaded successfully to {model_path}")
-            except Exception as e:
-                st.error(f"Error downloading model: {e}")
-                return None
+        except Exception as e:
+            st.error(f"Error downloading model: {e}")
+            return None
     
     return model_path
 
