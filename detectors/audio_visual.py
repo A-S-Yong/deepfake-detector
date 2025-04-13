@@ -8,38 +8,203 @@ import time
 from typing import List, Dict, Any, Tuple, Optional
 import sys
 import os
+import torchaudio
+import torchaudio.transforms as transforms
+from torchvision import models
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from inference_utils import extract_frames, preprocess_frame_spatial, extract_audio_features, detect_face_regions, extract_spectrogram
 
-class DeepfakeDetector(nn.Module):
+# 1. Implement the extract_frames function from the notebook
+def extract_frames(video_path, num_frames=30):
+    """
+    Extract frames from a video file.
+    
+    Args:
+        video_path: Path to the video file
+        num_frames: Number of frames to extract
+        
+    Returns:
+        List of frames extracted from the video
+    """
+    cap = cv2.VideoCapture(video_path)
+    frames = []  # Initialize frames here
+
+    if not cap.isOpened():
+        st.warning(f"Cannot open video {video_path}")
+        return frames  # Return empty list
+
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    if total_frames == 0:
+        st.warning(f"No frames found in {video_path}")
+        return frames
+
+    frame_indices = np.linspace(0, total_frames - 1, num_frames, dtype=int)
+
+    for idx in frame_indices:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+        ret, frame = cap.read()
+        if ret:
+            # Store the original frame for visualization
+            frames.append(frame)
+
+    cap.release()
+    return frames
+
+# 2. Implement preprocess_frame_spatial function
+def preprocess_frame_spatial(frame):
+    """
+    Preprocess a frame for the spatial CNN model
+    
+    Args:
+        frame: Input frame (numpy array)
+        
+    Returns:
+        Preprocessed frame tensor
+    """
+    try:
+        # Resize to model input size
+        frame_resized = cv2.resize(frame, (224, 224))
+        
+        # Convert to RGB if it's BGR
+        if frame_resized.shape[2] == 3:
+            frame_rgb = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
+        else:
+            frame_rgb = frame_resized
+            
+        # Normalize pixel values
+        frame_normalized = frame_rgb / 255.0
+        
+        # Convert to tensor and change to (C, H, W) format
+        frame_tensor = torch.from_numpy(frame_normalized).float().permute(2, 0, 1)
+        
+        return frame_tensor
+    except Exception as e:
+        st.error(f"Error preprocessing frame: {e}")
+        return None
+
+# 3. Implement the extract_audio_features function using extract_spectrogram
+def extract_audio_features(video_path, device, n_mels=128, max_length=128):
+    """
+    Extract audio features from a video file
+    
+    Args:
+        video_path: Path to the video file
+        device: Device to run the model on ('cuda' or 'cpu')
+        n_mels: Number of mel bands
+        max_length: Maximum length of the spectrogram
+        
+    Returns:
+        Audio features tensor
+    """
+    try:
+        # Extract audio from video to a temporary file
+        audio_path = video_path.replace('.mp4', '.wav')
+        if not os.path.exists(audio_path):
+            # If audio file doesn't exist, extract it from video
+            import subprocess
+            command = f"ffmpeg -i {video_path} -y -ab 160k -ac 2 -ar 44100 -vn {audio_path}"
+            subprocess.call(command, shell=True)
+        
+        # Load audio file
+        waveform, sample_rate = torchaudio.load(audio_path)
+        
+        if waveform.shape[1] == 0:
+            st.warning(f"Empty audio in {video_path}")
+            return torch.zeros(1, 1024, device=device)
+        
+        # Create mel spectrogram
+        transform = transforms.MelSpectrogram(sample_rate=sample_rate, n_mels=n_mels)
+        spectrogram = transform(waveform)
+        
+        # Apply log scaling
+        spectrogram = torch.log1p(spectrogram)
+        spectrogram = spectrogram.squeeze(0)  # Remove extra channel
+        
+        # Normalize
+        spectrogram = (spectrogram - spectrogram.mean()) / (spectrogram.std() + 1e-8)
+        
+        # Ensure fixed size
+        if spectrogram.shape[1] < max_length:
+            pad = torch.zeros((n_mels, max_length - spectrogram.shape[1]))
+            spectrogram = torch.cat((spectrogram, pad), dim=1)
+        else:
+            spectrogram = spectrogram[:, :max_length]
+            
+        # Reshape to match model input (convert to 1D feature vector of size 1024)
+        # This is an approximation - adjust based on your actual model architecture
+        spectrogram = spectrogram.flatten()[:1024]
+        if spectrogram.shape[0] < 1024:
+            pad_size = 1024 - spectrogram.shape[0]
+            spectrogram = torch.cat([spectrogram, torch.zeros(pad_size)])
+            
+        return spectrogram.unsqueeze(0).to(device)
+        
+    except Exception as e:
+        st.error(f"Error extracting audio features: {e}")
+        return torch.zeros(1, 1024, device=device)
+
+# 4. Implement the detect_face_regions function
+def detect_face_regions(frame):
+    """
+    Detect face regions in a frame
+    
+    Args:
+        frame: Input frame
+        
+    Returns:
+        List of face regions (x, y, w, h)
+    """
+    try:
+        # Convert to grayscale for face detection
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # Load face cascade (you need to have this file available)
+        face_cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        face_cascade = cv2.CascadeClassifier(face_cascade_path)
+        
+        # Detect faces
+        faces = face_cascade.detectMultiScale(
+            gray,
+            scaleFactor=1.1,
+            minNeighbors=5,
+            minSize=(30, 30)
+        )
+        
+        face_regions = []
+        for (x, y, w, h) in faces:
+            face_regions.append([int(x), int(y), int(w), int(h)])
+            
+        # If no faces detected, return a default region (center of the frame)
+        if len(face_regions) == 0:
+            h, w = frame.shape[:2]
+            center_x = w // 4
+            center_y = h // 4
+            face_regions.append([center_x, center_y, w // 2, h // 2])
+            
+        return face_regions
+    
+    except Exception as e:
+        st.error(f"Error detecting face regions: {e}")
+        h, w = frame.shape[:2]
+        return [[0, 0, w, h]]  # Return full frame as fallback
+
+# 5. Update the AudioVisualModel to align with the notebook's architecture
+class AudioVisualModel(nn.Module):
     """Audio-Visual model for deepfake detection"""
     
     def __init__(self):
         super().__init__()
-        # Visual feature extractor
+        # Visual feature extractor (using ResNet instead of simple CNN)
         self.visual_features = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.AdaptiveAvgPool2d((7, 7)),
+            *list(models.resnet18(pretrained=True).children())[:-1],
             nn.Flatten(),
-            nn.Linear(128 * 7 * 7, 512),
+            nn.Linear(512, 512),  # Match the notebook's CNNFeatureExtractor output size
             nn.ReLU(),
         )
         
-        # Audio feature extractor (would connect to audio spectrogram)
+        # Audio feature extractor 
         self.audio_features = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(16, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.AdaptiveAvgPool2d((4, 4)),
-            nn.Flatten(),
-            nn.Linear(32 * 4 * 4, 512),
+            nn.Linear(1024, 512),  # Simplified version of the notebook's AudioTransformer
             nn.ReLU(),
         )
         
@@ -69,218 +234,4 @@ class DeepfakeDetector(nn.Module):
         output = self.combined(combined)
         return output
 
-class AudioVisualAnalyzer:
-    """Audio-Visual analysis for deepfake detection"""
-    
-    def __init__(self, model_path: str, device: Optional[str] = None):
-        """
-        Initialize the audio-visual analyzer
-        
-        Args:
-            model_path: Path to the PyTorch model file (.pth)
-            device: Device to run the model on ('cuda' or 'cpu')
-        """
-        self.model_path = model_path
-        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
-        st.write(f"Using device for audio-visual analysis: {self.device}")
-        self.model = self._load_model()
-    
-    def _load_model(self) -> nn.Module:
-        """
-        Load the Audio-Visual model from disk
-        
-        Returns:
-            Loaded PyTorch model
-        """
-        try:
-            # Initialize the model architecture
-            model = DeepfakeDetector()
-            
-            # Load weights if file exists
-            try:
-                state_dict = torch.load(self.model_path, map_location=self.device)
-                model.load_state_dict(state_dict)
-                st.write("Audio-Visual model loaded from saved weights")
-            except Exception as e:
-                st.warning(f"Using untrained Audio-Visual model (for demonstration): {e}")
-            
-            # Set to evaluation mode
-            model.eval()
-            model = model.to(self.device)
-            
-            # Test with dummy input
-            dummy_visual = torch.randn(1, 3, 224, 224, device=self.device)
-            dummy_audio = torch.randn(1, 1024, device=self.device)
-            
-            with torch.no_grad():
-                output = model(dummy_visual, dummy_audio)
-                st.write(f"Audio-Visual model test output: {output}")
-                
-            return model
-            
-        except Exception as e:
-            st.error(f"Error loading Audio-Visual model: {e}")
-            return self._get_placeholder_model()
-    
-    def _get_placeholder_model(self) -> nn.Module:
-        """
-        Create a placeholder audio-visual model for testing
-        
-        Returns:
-            Placeholder PyTorch model
-        """
-        class PlaceholderAVModel(nn.Module):
-            def __init__(self):
-                super().__init__()
-                self.fc = nn.Linear(1, 2)
-                
-            def forward(self, visual, audio=None):
-                batch_size = visual.shape[0]
-                # Return random logits for testing
-                logits = torch.randn(batch_size, 2, device=visual.device)
-                return logits
-        
-        model = PlaceholderAVModel().to(self.device)
-        model.eval()
-        return model
-    
-    def analyze_video(self, video_path: str, max_frames: int = 30) -> Dict[str, Any]:
-        """
-        Analyze a video file to detect if it's a deepfake using audio-visual analysis
-        
-        Args:
-            video_path: Path to the video file
-            max_frames: Maximum number of frames to extract
-            
-        Returns:
-            Dictionary with detection results including confidence score
-        """
-        start_time = time.time()
-        
-        # Progress placeholder for Streamlit
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        
-        # Extract frames from the video
-        status_text.text("Extracting frames for audio-visual analysis...")
-        frames = extract_frames(video_path, max_frames)
-        progress_bar.progress(0.3)
-        
-        if not frames:
-            status_text.text("No frames could be extracted")
-            progress_bar.empty()
-            return {
-                "is_deepfake": False,
-                "confidence": 0.0,
-                "processing_time": time.time() - start_time,
-                "frames_analyzed": 0,
-                "detection_areas": [],
-                "model_type": "audio_visual"
-            }
-        
-        # Extract audio features
-        status_text.text("Extracting audio features...")
-        progress_bar.progress(0.5)
-        audio_features = extract_audio_features(video_path, self.device)
-        
-        # Analyze frames with audio-visual model
-        predictions = []
-        confidence_scores = []
-        frames_with_detections = []
-        
-        status_text.text("Running audio-visual analysis...")
-        progress_bar.progress(0.7)
-        
-        with torch.no_grad():
-            for frame_idx, frame in enumerate(frames):
-                # Update progress
-                progress_percentage = 0.7 + (0.3 * (frame_idx + 1) / len(frames))
-                progress_bar.progress(progress_percentage)
-                
-                # Preprocess frame
-                visual_features = preprocess_frame_spatial(frame)
-                if visual_features is None:
-                    continue
-                
-                # Add batch dimension and move to device
-                visual_features = visual_features.unsqueeze(0).to(self.device)
-                
-                try:
-                    # Run model inference
-                    output = self.model(visual_features, audio_features)
-                    
-                    # Apply softmax to get probabilities
-                    probs = F.softmax(output, dim=1).cpu().numpy()[0]
-                    
-                    # Get fake and real probabilities
-                    fake_prob = probs[0]
-                    real_prob = probs[1]
-                    
-                    # Determine if frame is fake
-                    is_fake = fake_prob > real_prob
-                    
-                    # Store prediction and confidence
-                    predictions.append(is_fake)
-                    confidence_scores.append(real_prob)
-                    
-                    # Store frames with fake detection for visualization
-                    if is_fake:
-                        frames_with_detections.append((frame_idx, frame, fake_prob))
-                        
-                except Exception as e:
-                    st.error(f"Error during audio-visual inference: {e}")
-                    continue
-        
-        # Clear progress indicators
-        progress_bar.empty()
-        status_text.empty()
-        
-        # If no valid predictions, return default result
-        if not predictions:
-            return {
-                "is_deepfake": False,
-                "confidence": 0.0,
-                "processing_time": time.time() - start_time,
-                "frames_analyzed": len(frames),
-                "detection_areas": [],
-                "model_type": "audio_visual"
-            }
-        
-        # Calculate overall results
-        fake_count = sum(predictions)
-        total_count = len(predictions)
-        
-        # A video is considered fake if more than 25% of frames are detected as fake
-        is_deepfake = fake_count / total_count > 0.25
-        
-        # Calculate confidence score
-        avg_real_confidence = sum(confidence_scores) / len(confidence_scores)
-        confidence = 1.0 - avg_real_confidence if is_deepfake else avg_real_confidence
-        
-        # Get top 5 frames with highest fake probability
-        frames_with_detections = sorted(frames_with_detections, key=lambda x: x[2], reverse=True)[:5]
-        
-        # Create detection areas
-        detection_areas = []
-        if is_deepfake and frames_with_detections:
-            for frame_idx, frame, prob in frames_with_detections:
-                face_regions = detect_face_regions(frame)
-                for region in face_regions:
-                    detection_areas.append({
-                        "frame_number": frame_idx,
-                        "coordinates": region,
-                        "confidence": float(prob)
-                    })
-        
-        # Final result
-        result = {
-            "is_deepfake": is_deepfake,
-            "confidence": float(confidence),
-            "processing_time": time.time() - start_time,
-            "frames_analyzed": len(frames),
-            "detection_areas": detection_areas,
-            "frames_with_detections": frames_with_detections,
-            "model_type": "audio_visual"
-        }
-        
-        return result
+# The rest of your AudioVisualAnalyzer class can remain the same
