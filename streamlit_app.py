@@ -98,8 +98,10 @@ class DeepfakeDetector:
             model = SwinTransformerClassifier(num_classes=2)
             
             # Load the trained weights
-            model.load_state_dict(torch.load(self.model_path, map_location=self.device))
-            
+            # ── Load the trained weights (ignore non‑persistent Swin buffers) ──
+            state_dict = torch.load(self.model_path, map_location=self.device)
+            missing, unexpected = model.load_state_dict(state_dict, strict=False)
+
             # Set the model to evaluation mode
             model.eval()
             model = model.to(self.device)
