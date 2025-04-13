@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Tuple, Optional
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from inference_utils import extract_frames, preprocess_frame_spatial, extract_audio_features, detect_face_regions
+from inference_utils import extract_frames, preprocess_frame_spatial, extract_audio_features, detect_face_regions, extract_spectrogram
 
 class AudioVisualModel(nn.Module):
     """Audio-Visual model for deepfake detection"""
@@ -32,7 +32,14 @@ class AudioVisualModel(nn.Module):
         
         # Audio feature extractor (would connect to audio spectrogram)
         self.audio_features = nn.Sequential(
-            nn.Linear(1024, 512),  # Assume audio spectrogram features
+            nn.Conv2d(1, 16, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Conv2d(16, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((4, 4)),
+            nn.Flatten(),
+            nn.Linear(32 * 4 * 4, 512),
             nn.ReLU(),
         )
         

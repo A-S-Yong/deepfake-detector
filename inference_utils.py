@@ -5,6 +5,8 @@ import os
 import tempfile
 from typing import List, Dict, Any, Tuple, Optional
 import streamlit as st
+import torchaudio
+import torchaudio.transforms as transforms
 
 def extract_frames(video_path: str, max_frames: int = 30) -> List[np.ndarray]:
     """
@@ -120,24 +122,60 @@ def preprocess_frame_temporal(frame: np.ndarray, target_size: Tuple[int, int] = 
         st.error(f"Error preprocessing frame for temporal analysis: {e}")
         return None
 
-def extract_audio_features(video_path: str, device: str = 'cpu') -> torch.Tensor:
+def extract_audio_features(video_path: str, device: str) -> torch.Tensor:
+    audio_path = video_path.rsplit('.', 1)[0] + '.wav'
+    spectrogram = extract_spectrogram(audio_path)  # shape: (128, 128)
+    # Convert to tensor and add channel dimension (expected: [batch, 1, H, W])
+    audio_tensor = torch.tensor(spectrogram, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
+    return audio_tensor
+
+def extract_spectrogram(audio_path, n_mels=128, max_length=128):
     """
-    Extract audio features from a video file (placeholder implementation)
-    
+    Extract a log-scaled Mel spectrogram from the given audio file.
+
     Args:
-        video_path: Path to the video file
-        device: Device to put tensor on
-        
+        audio_path (str): Path to the audio file.
+        n_mels (int): Number of Mel frequency bins to use.
+        max_length (int): Maximum length (number of time frames) for the spectrogram.
+
     Returns:
-        Audio features as a PyTorch tensor
+        np.ndarray: A spectrogram of shape (n_mels, max_length), or a blank spectrogram if processing fails.
     """
-    # This is a placeholder. In a real implementation, you would:
-    # 1. Extract audio using librosa or ffmpeg
-    # 2. Compute spectrograms or MFCCs
-    # 3. Convert to tensors for model input
+    try:
+        # Load the audio file
+        waveform, sample_rate = torchaudio.load(audio_path)
+        
+        # Check if the audio is empty
+        if waveform.shape[1] == 0:
+            print(f"Warning: Empty audio in {audio_path}")
+            return np.zeros((n_mels, max_length))
+        
+        # Create a MelSpectrogram transform and apply it
+        mel_transform = transforms.MelSpectrogram(sample_rate=sample_rate, n_mels=n_mels)
+        spectrogram = mel_transform(waveform)
+        
+        # Apply logarithmic scaling
+        spectrogram = torch.log1p(spectrogram)
+        
+        # Remove any extra channel if needed (assuming mono channel here)
+        spectrogram = spectrogram.squeeze(0)
+        
+        # Normalize the spectrogram
+        spectrogram = (spectrogram - spectrogram.mean()) / spectrogram.std()
+        
+        # Adjust the spectrogram size: pad or truncate to max_length
+        if spectrogram.shape[1] < max_length:
+            padding = torch.zeros((n_mels, max_length - spectrogram.shape[1]))
+            spectrogram = torch.cat((spectrogram, padding), dim=1)
+        else:
+            spectrogram = spectrogram[:, :max_length]
+        
+        return spectrogram.numpy()
     
-    # Return dummy audio features for demonstration
-    return torch.randn(1, 1024, device=device)
+    except Exception as e:
+        print(f"Error processing audio {audio_path}: {e}")
+        return np.zeros((n_mels, max_length))
+
 
 def detect_face_regions(frame: np.ndarray) -> List[Dict[str, int]]:
     """
