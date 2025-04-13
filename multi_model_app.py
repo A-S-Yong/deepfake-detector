@@ -18,7 +18,7 @@ if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
 # Import our custom modules
 from detectors.spatial import SpatialAnalyzer
 from detectors.temporal import TemporalAnalyzer
-from detectors.audio_visual import AudioVisualAnalyzer
+from detectors.audio_visual import DeepfakeDetector
 from inference_utils import extract_video_metadata, format_file_size, format_duration
 
 # Model file ID mappings

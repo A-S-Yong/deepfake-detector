@@ -188,8 +188,8 @@ def detect_face_regions(frame):
         h, w = frame.shape[:2]
         return [[0, 0, w, h]]  # Return full frame as fallback
 
-# 5. Update the AudioVisualModel to align with the notebook's architecture
-class AudioVisualModel(nn.Module):
+# 5. Update the DeepfakeDetector to align with the notebook's architecture
+class DeepfakeDetector(nn.Module):
     """Audio-Visual model for deepfake detection"""
     
     def __init__(self):

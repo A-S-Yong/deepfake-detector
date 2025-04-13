@@ -3,10 +3,10 @@
 
 from .spatial import SpatialAnalyzer
 from .temporal import TemporalAnalyzer
-from .audio_visual import AudioVisualAnalyzer
+from .audio_visual import DeepfakeDetector
 
 __all__ = [
     'SpatialAnalyzer',
     'TemporalAnalyzer',
-    'AudioVisualAnalyzer'
+    'DeepfakeDetector'
 ]
