@@ -11,7 +11,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from inference_utils import extract_frames, preprocess_frame_spatial, extract_audio_features, detect_face_regions, extract_spectrogram
 
-class AudioVisualModel(nn.Module):
+class DeepfakeDetector(nn.Module):
     """Audio-Visual model for deepfake detection"""
     
     def __init__(self):
@@ -94,7 +94,7 @@ class AudioVisualAnalyzer:
         """
         try:
             # Initialize the model architecture
-            model = AudioVisualModel()
+            model = DeepfakeDetector()
             
             # Load weights if file exists
             try:
