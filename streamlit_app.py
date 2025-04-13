@@ -627,7 +627,7 @@ with col2:
 
 # Sidebar for app navigation
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Home", "Upload Video", "Analysis History", "About"])
+page = st.sidebar.radio("Go to", ["Home", "Upload Video", "Analysis History"])
 
 if page == "Home":
     st.markdown("## See beyond the surface, uncover digital truth with Deepfake Detector!")
