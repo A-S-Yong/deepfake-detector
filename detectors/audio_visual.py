@@ -309,12 +309,13 @@ class AudioVisualAnalyzer:
         model.eval()
         return model
     
-    def analyze_frames(self, frames: List[np.ndarray]) -> Dict[str, Any]:
+    def analyze_frames(self, frames: List[np.ndarray], video_path: Optional[str] = None) -> Dict[str, Any]:
         """
         Analyze a list of frames for deepfake detection
         
         Args:
             frames: List of video frames as numpy arrays
+            video_path: Optional path to the video file for audio extraction
             
         Returns:
             Dictionary with detection results
@@ -361,10 +362,7 @@ class AudioVisualAnalyzer:
         
         # Use torch.no_grad() to disable gradient calculation for inference
         with torch.no_grad():
-            # Extract audio features (assume first frame contains the video_path)
-            video_path = getattr(frames[0], 'video_path', None)
-            
-            # If video_path is not available, we'll proceed without audio
+            # Extract audio features if video_path is provided
             audio_features = None
             if video_path:
                 status_text.text("Extracting audio features...")
@@ -486,12 +484,8 @@ class AudioVisualAnalyzer:
         # Extract frames from video
         frames = extract_frames(video_path, max_frames)
         
-        # Add video_path as attribute to first frame for audio extraction
-        if frames:
-            frames[0].video_path = video_path
-        
-        # Analyze the extracted frames
-        result = self.analyze_frames(frames)
+        # Analyze the extracted frames, passing the video_path for audio extraction
+        result = self.analyze_frames(frames, video_path)
         
         # Add model type to result
         result["model_type"] = "audio_visual"
