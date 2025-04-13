@@ -316,7 +316,7 @@ elif page == "Upload Video":
                             detector = TemporalAnalyzer(model_path)
                         else:  # Audio-Visual
                             model_path = download_model("audio_visual")
-                            detector = AudioVisualAnalyzer(model_path)
+                            detector = DeepfakeDetector(model_path)
                     
                     # Analyze for deepfakes
                     with st.spinner(f"Analyzing video using {model_type}..."):
