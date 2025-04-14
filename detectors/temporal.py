@@ -56,7 +56,7 @@ class TemporalAnalyzer:
 
             model.eval()
             model.to(self.device)
-            st.write("Temporal model loaded successfully")
+            st.success("Temporal model loaded successfully")
             
             # Test the model with dummy data
             try:
