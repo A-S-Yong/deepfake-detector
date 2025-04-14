@@ -271,6 +271,20 @@ page = st.sidebar.radio("Go to", ["Home", "Upload Video", "Analysis History"])
 if page == "Home":
     st.markdown("## See beyond the surface, uncover digital truth with our advanced Deepfake Detector!")
     
+    # Added a compatibility notice
+    st.markdown("""
+    <div class="compatibility-notice">
+        <h4>📹 Video Compatibility Notice</h4>
+        <p>Videos will only be displayed if they are browser compatible. For best results:</p>
+        <ul>
+            <li><strong>File format:</strong> Convert your videos to .mp4 format</li>
+            <li><strong>Video codec:</strong> Use H.264 or HEVC (H.265) encoding</li>
+            <li><strong>Maximum file size:</strong> 200MB</li>
+        </ul>
+        <p>Incompatible videos may still be analyzed, but preview functionality will be limited.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("### Our Multi-Model Approach")
     
     col1, col2, col3 = st.columns(3)
