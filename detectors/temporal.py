@@ -31,13 +31,13 @@ class TemporalAnalyzer:
         Load the temporal model from disk with custom unpickling
         
         Returns:
-            Loaded model (likely scikit-learn or similar)
+            Loaded model
         """
         try:
             # Import the model class definition for unpickling
             from models import Deepfake3DCNN
             
-            # Use a custom unpickler to handle the model class
+            # Use a custom unpickler to handle the model class and persistent IDs
             class CustomUnpickler(pickle.Unpickler):
                 def find_class(self, module, name):
                     # This will redirect any references to the main module's Deepfake3DCNN
@@ -47,8 +47,11 @@ class TemporalAnalyzer:
                     return super().find_class(module, name)
                     
                 def persistent_load(self, pid):
-                    # Handle persistent IDs - this is needed for more complex objects
-                    # In most cases, returning the pid itself works for PyTorch models
+                    # Convert non-ASCII persistent IDs to ASCII strings
+                    if isinstance(pid, bytes):
+                        return pid.decode('ascii', errors='replace')
+                    if not isinstance(pid, str):
+                        return str(pid)
                     return pid
             
             # For pickle-based models
