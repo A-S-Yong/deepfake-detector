@@ -28,20 +28,37 @@ class TemporalAnalyzer:
     
     def _load_model(self):
         """
-        Load the temporal model from disk
+        Load the temporal model from disk with custom unpickling
         
         Returns:
             Loaded model (likely scikit-learn or similar)
         """
         try:
+            # Import the model class definition for unpickling
+            from models import Deepfake3DCNN
+            
+            # Use a custom unpickler to handle the model class
+            class CustomUnpickler(pickle.Unpickler):
+                def find_class(self, module, name):
+                    # This will redirect any references to the main module's Deepfake3DCNN
+                    # to our newly defined class
+                    if name == 'Deepfake3DCNN':
+                        return Deepfake3DCNN
+                    return super().find_class(module, name)
+            
             # For pickle-based models
             with open(self.model_path, 'rb') as f:
-                model = pickle.load(f)
-                
+                model = CustomUnpickler(f).load()
+            
+            # Move model to the correct device
+            if hasattr(model, 'to') and callable(getattr(model, 'to')):
+                model = model.to(self.device)
+                model.eval()  # Set to evaluation mode
+                    
             # Test the model if possible
             st.write("Temporal model loaded successfully")
             return model
-            
+                
         except Exception as e:
             st.error(f"Error loading Temporal model: {e}")
             return self._get_placeholder_model()
@@ -232,7 +249,7 @@ class TemporalAnalyzer:
         
         return result
 
-    def analyze_video(self, video_path: str, max_frames: int = 60) -> Dict[str, Any]:
+    def analyze_video(self, video_path: str, max_frames: int = 30) -> Dict[str, Any]:
         """
         Analyze a video file to detect if it's a deepfake using temporal analysis
         
