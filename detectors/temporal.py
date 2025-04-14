@@ -27,26 +27,35 @@ class TemporalAnalyzer:
         self.model = self._load_model()
     
     def _load_model(self):
+        """
+        Load the temporal model from disk, handling the fact that the
+        pickle references main.Deepfake3DCNN (the class defined during
+        training in the notebook).
+        """
         try:
-            # ① import the real class
-            from models import Deepfake3DCNN                         # :contentReference[oaicite:0]{index=0}
-            from torch.serialization import add_safe_globals
-            add_safe_globals([Deepfake3DCNN])             # ← NEW (trust this class)
+            # 1) Import the real class from models.py
+            from models import Deepfake3DCNN                       # :contentReference[oaicite:0]{index=0}
 
-            # ② make a fake module named "main" that points to the same class
+            # 2) Tell PyTorch that this class is safe to un‑pickle
+            from torch.serialization import add_safe_globals
+            add_safe_globals([Deepfake3DCNN])
+
+            # 3) Create a fake module called "main" (and "__main__" for safety)
             import types, sys
             fake_main = types.ModuleType("main")
             fake_main.Deepfake3DCNN = Deepfake3DCNN
-            sys.modules["main"] = fake_main        # ← alias injected
+            sys.modules["main"] = fake_main
+            sys.modules["__main__"] = fake_main   # covers both spellings
 
-            # ③ now it will un‑pickle correctly
+            # 4) Now load the full object pickle
             model = torch.load(
                 self.model_path,
                 map_location=self.device,
-                weights_only=False,                # full object load
+                weights_only=False,              # full‑object load
             )
 
-            model.eval(); model.to(self.device)
+            model.eval()
+            model.to(self.device)
             st.write("Temporal model loaded successfully")
             return model
 
@@ -54,7 +63,6 @@ class TemporalAnalyzer:
             st.error(f"Error loading Temporal model: {e}")
             return self._get_placeholder_model()
 
-    
     def _get_placeholder_model(self):
         """
         Create a placeholder temporal model for testing
