@@ -28,42 +28,27 @@ class TemporalAnalyzer:
     
     def _load_model(self):
         """
-        Load the temporal model from disk with custom unpickling
+        Load the temporal model from disk
         
         Returns:
             Loaded model
         """
         try:
-            # Import the model class definition for unpickling
+            # Import the model class definition
             from models import Deepfake3DCNN
             
-            # Use a custom unpickler to handle the model class and persistent IDs
-            class CustomUnpickler(pickle.Unpickler):
-                def find_class(self, module, name):
-                    # This will redirect any references to the main module's Deepfake3DCNN
-                    # to our newly defined class
-                    if name == 'Deepfake3DCNN':
-                        return Deepfake3DCNN
-                    return super().find_class(module, name)
-                    
-                def persistent_load(self, pid):
-                    # Convert non-ASCII persistent IDs to ASCII strings
-                    if isinstance(pid, bytes):
-                        return pid.decode('ascii', errors='replace')
-                    if not isinstance(pid, str):
-                        return str(pid)
-                    return pid
+            # Load the model using torch.load since it was saved with torch.save
+            model = torch.load(self.model_path, map_location=self.device)
             
-            # For pickle-based models
-            with open(self.model_path, 'rb') as f:
-                model = CustomUnpickler(f).load()
+            # If the loaded object is a state_dict, we need to create the model first
+            if isinstance(model, dict):
+                model_instance = Deepfake3DCNN()
+                model_instance.load_state_dict(model)
+                model = model_instance
             
-            # Move model to the correct device
-            if hasattr(model, 'to') and callable(getattr(model, 'to')):
-                model = model.to(self.device)
-                model.eval()  # Set to evaluation mode
+            # Ensure the model is in evaluation mode
+            model.eval()
                     
-            # Test the model if possible
             st.write("Temporal model loaded successfully")
             return model
                 
