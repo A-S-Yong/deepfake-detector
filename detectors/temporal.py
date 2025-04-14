@@ -34,7 +34,7 @@ class TemporalAnalyzer:
         """
         try:
             # 1) Import the real class from models.py
-            from models import Deepfake3DCNN                       # :contentReference[oaicite:0]{index=0}
+            from models import Deepfake3DCNN
 
             # 2) Tell PyTorch that this class is safe to un‑pickle
             from torch.serialization import add_safe_globals
@@ -101,10 +101,10 @@ class TemporalAnalyzer:
         progress_text = st.empty()
         progress_text.text("Processing frames for temporal analysis...")
             
-        # Preprocess each frame
+        # Preprocess each frame - use the imported preprocess_frame_temporal function
         processed_frames = []
         for i, frame in enumerate(frames):
-            processed = self._preprocess_frame(frame)
+            processed = preprocess_frame_temporal(frame)
             if processed is not None:
                 processed_frames.append(processed)
             
@@ -125,32 +125,6 @@ class TemporalAnalyzer:
         progress_text.empty()
         
         return features
-    
-    def _preprocess_frame(self, frame: np.ndarray) -> Optional[np.ndarray]:
-        """
-        Internal method to preprocess a frame for the temporal model
-        Keeps the spatial structure intact for the 3D CNN
-        
-        Args:
-            frame: Input video frame
-            
-        Returns:
-            Preprocessed frame as numpy array
-        """
-        try:
-            # Resize to target size
-            frame = cv2.resize(frame, (224, 224))
-            
-            # Convert to RGB
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            
-            # Normalize pixel values
-            normalized = frame_rgb.astype(np.float32) / 255.0
-            
-            return normalized
-        except Exception as e:
-            st.error(f"Error preprocessing frame: {e}")
-            return None
     
     def analyze_frames(self, frames: List[np.ndarray]) -> Dict[str, Any]:
         """

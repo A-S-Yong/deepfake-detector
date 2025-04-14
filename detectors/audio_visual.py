@@ -13,6 +13,9 @@ import torchaudio.transforms as transforms
 from torchvision import models
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Import utility functions from inference_utils instead of reimplementing them
+from inference_utils import extract_frames, preprocess_frame_spatial, detect_face_regions
+
 # 1. Implement the extract_frames function from the notebook
 def extract_frames(video_path, num_frames=30):
     """
