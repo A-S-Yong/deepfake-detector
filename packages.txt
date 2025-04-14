@@ -5,3 +5,7 @@ libgl1
 libglib2.0-0
 libxrender1
 libfontconfig1
+libavcodec-dev
+libavformat-dev
+libavutil-dev
+libswscale-dev

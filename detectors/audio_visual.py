@@ -97,16 +97,50 @@ def extract_audio_features(video_path, device, n_mels=128, max_length=128):
         Audio features tensor
     """
     try:
-        # Extract audio from video to a temporary file
-        audio_path = video_path.replace('.mp4', '.wav')
-        if not os.path.exists(audio_path):
-            # If audio file doesn't exist, extract it from video
-            import subprocess
-            command = f"ffmpeg -i {video_path} -y -ab 160k -ac 2 -ar 44100 -vn {audio_path}"
-            subprocess.call(command, shell=True)
+        # Create a unique temporary file for the audio
+        import tempfile
+        import os
         
-        # Load audio file
-        waveform, sample_rate = torchaudio.load(audio_path)
+        # Use a temporary file with a proper extension
+        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio_file:
+            audio_path = temp_audio_file.name
+        
+        st.write(f"Extracting audio to: {audio_path}")
+        
+        # Use ffmpeg-python instead of direct subprocess call
+        import ffmpeg
+        try:
+            # Extract audio using ffmpeg-python
+            (
+                ffmpeg
+                .input(video_path)
+                .output(audio_path, acodec='pcm_s16le', ac=2, ar=44100)
+                .run(capture_stdout=True, capture_stderr=True, overwrite_output=True)
+            )
+            st.write(f"Audio extraction successful, file exists: {os.path.exists(audio_path)}")
+        except ffmpeg.Error as e:
+            st.error(f"FFmpeg error: {e.stderr.decode()}")
+            # Fallback to empty tensor if extraction fails
+            return torch.zeros(1, 1024, device=device)
+        
+        # Check if file exists and is non-empty
+        if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
+            st.warning(f"Audio extraction failed or produced empty file: {audio_path}")
+            return torch.zeros(1, 1024, device=device)
+        
+        # Load audio file with error handling
+        try:
+            waveform, sample_rate = torchaudio.load(audio_path)
+            st.write(f"Audio loaded successfully. Waveform shape: {waveform.shape}, Sample rate: {sample_rate}")
+        except Exception as e:
+            st.error(f"Error loading audio with torchaudio: {e}")
+            return torch.zeros(1, 1024, device=device)
+        finally:
+            # Clean up the temporary file
+            try:
+                os.unlink(audio_path)
+            except Exception as cleanup_error:
+                st.warning(f"Failed to remove temporary audio file: {cleanup_error}")
         
         if waveform.shape[1] == 0:
             st.warning(f"Empty audio in {video_path}")
@@ -121,26 +155,28 @@ def extract_audio_features(video_path, device, n_mels=128, max_length=128):
         spectrogram = spectrogram.squeeze(0)  # Remove extra channel
         
         # Normalize
-        spectrogram = (spectrogram - spectrogram.mean()) / (spectrogram.std() + 1e-8)
+        if torch.std(spectrogram) > 0:
+            spectrogram = (spectrogram - torch.mean(spectrogram)) / (torch.std(spectrogram) + 1e-8)
         
         # Ensure fixed size
         if spectrogram.shape[1] < max_length:
-            pad = torch.zeros((n_mels, max_length - spectrogram.shape[1]))
+            pad = torch.zeros((n_mels, max_length - spectrogram.shape[1]), device=spectrogram.device)
             spectrogram = torch.cat((spectrogram, pad), dim=1)
         else:
             spectrogram = spectrogram[:, :max_length]
             
         # Reshape to match model input (convert to 1D feature vector of size 1024)
-        # This is an approximation - adjust based on your actual model architecture
         spectrogram = spectrogram.flatten()[:1024]
         if spectrogram.shape[0] < 1024:
             pad_size = 1024 - spectrogram.shape[0]
-            spectrogram = torch.cat([spectrogram, torch.zeros(pad_size)])
+            spectrogram = torch.cat([spectrogram, torch.zeros(pad_size, device=spectrogram.device)])
             
         return spectrogram.unsqueeze(0).to(device)
         
     except Exception as e:
         st.error(f"Error extracting audio features: {e}")
+        import traceback
+        st.error(f"Traceback: {traceback.format_exc()}")
         return torch.zeros(1, 1024, device=device)
 
 # 4. Implement the detect_face_regions function
