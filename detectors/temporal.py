@@ -57,6 +57,15 @@ class TemporalAnalyzer:
             model.eval()
             model.to(self.device)
             st.write("Temporal model loaded successfully")
+            
+            # Test the model with dummy data
+            try:
+                dummy_features = np.zeros((10, 3, 224, 224), dtype=np.float32)
+                dummy_output = model.predict_proba(dummy_features)
+                st.write(f"Model test output shape: {dummy_output.shape}, values: min={dummy_output.min()}, max={dummy_output.max()}")
+            except Exception as test_error:
+                st.error(f"Model test failed: {test_error}")
+            
             return model, False
 
         except Exception as e:
@@ -154,7 +163,8 @@ class TemporalAnalyzer:
                 "frames_analyzed": len(frames),
                 "detection_areas": [],
                 "frames_with_detections": [],
-                "is_placeholder": True
+                "is_placeholder": True,
+                "debug_info": {"error": "Not enough frames"}
             }
         
         # Extract temporal features
@@ -174,7 +184,8 @@ class TemporalAnalyzer:
                 "frames_analyzed": len(frames),
                 "detection_areas": [],
                 "frames_with_detections": [],
-                "is_placeholder": True
+                "is_placeholder": True,
+                "debug_info": {"error": "Failed to extract features"}
             }
         
         # Get model predictions
@@ -185,15 +196,36 @@ class TemporalAnalyzer:
             # Predict with the temporal model
             probabilities = self.model.predict_proba(features)
             
+            # Add debug info
+            fake_probs_mean = np.mean(probabilities[:, 0])
+            real_probs_mean = np.mean(probabilities[:, 1])
+            debug_info = {
+                "probabilities_shape": probabilities.shape,
+                "fake_probs_mean": float(fake_probs_mean),
+                "real_probs_mean": float(real_probs_mean),
+                "fake_probs_min": float(np.min(probabilities[:, 0])),
+                "fake_probs_max": float(np.max(probabilities[:, 0])),
+                "real_probs_min": float(np.min(probabilities[:, 1])),
+                "real_probs_max": float(np.max(probabilities[:, 1])),
+            }
+            
+            # Display debug info
+            st.write("Debug info - Model probabilities:")
+            st.write(f"- Average fake probability: {fake_probs_mean:.4f}")
+            st.write(f"- Average real probability: {real_probs_mean:.4f}")
+            
+            # IMPORTANT FIX: Force lower threshold for deepfake detection to prevent false positives
+            DEEPFAKE_THRESHOLD = 0.65  # Require higher confidence to classify as deepfake
+            
             # Average the probabilities across frames
             avg_probs = np.mean(probabilities, axis=0)
             
-            # Interpret results (assuming class 1 is real, class 0 is fake)
-            real_prob = avg_probs[1] if avg_probs.shape[0] > 1 else 1.0 - avg_probs[0]
-            fake_prob = avg_probs[0] if avg_probs.shape[0] > 1 else avg_probs[0]
+            # Interpret results (assuming index 0 is fake, index 1 is real)
+            fake_prob = avg_probs[0]
+            real_prob = avg_probs[1]
             
-            # Determine if deepfake
-            is_deepfake = fake_prob > real_prob
+            # Use a higher threshold for declaring deepfakes to reduce false positives
+            is_deepfake = fake_prob > DEEPFAKE_THRESHOLD and fake_prob > real_prob
             
             # Calculate confidence
             confidence = fake_prob if is_deepfake else real_prob
@@ -205,10 +237,11 @@ class TemporalAnalyzer:
             progress_bar.progress(0.8)
             status_text.text("Identifying frames with manipulations...")
             
+            # Only consider frames as "detected" if they exceed the threshold
             for i, frame in enumerate(frames[1:]):  # Skip first frame
                 if i < len(probabilities):
                     frame_fake_prob = probabilities[i][0]
-                    if frame_fake_prob > 0.5:
+                    if frame_fake_prob > DEEPFAKE_THRESHOLD:
                         frames_with_detections.append((i+1, frame, frame_fake_prob))
             
             # Get top 5 frames with highest fake probability
@@ -216,6 +249,9 @@ class TemporalAnalyzer:
             
         except Exception as e:
             st.error(f"Error during temporal model inference: {e}")
+            import traceback
+            st.error(f"Traceback: {traceback.format_exc()}")
+            
             if progress_bar:
                 progress_bar.empty()
             if status_text:
@@ -227,7 +263,8 @@ class TemporalAnalyzer:
                 "frames_analyzed": len(frames),
                 "detection_areas": [],
                 "frames_with_detections": [],
-                "is_placeholder": True
+                "is_placeholder": True,
+                "debug_info": {"error": str(e), "traceback": traceback.format_exc()}
             }
         
         # Create detection areas
@@ -259,7 +296,8 @@ class TemporalAnalyzer:
             "frames_analyzed": len(frames),
             "detection_areas": detection_areas,
             "frames_with_detections": frames_with_detections,
-            "is_placeholder": self.is_placeholder
+            "is_placeholder": self.is_placeholder,
+            "debug_info": debug_info
         }
         
         return result
