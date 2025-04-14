@@ -34,24 +34,10 @@ class TemporalAnalyzer:
             Loaded model
         """
         try:
-            # Import the model class definition
-            from models import Deepfake3DCNN
-            
-            # Load the model using torch.load since it was saved with torch.save
             model = torch.load(self.model_path, map_location=self.device)
-            
-            # If the loaded object is a state_dict, we need to create the model first
-            if isinstance(model, dict):
-                model_instance = Deepfake3DCNN()
-                model_instance.load_state_dict(model)
-                model = model_instance
-            
-            # Ensure the model is in evaluation mode
             model.eval()
-                    
             st.write("Temporal model loaded successfully")
             return model
-                
         except Exception as e:
             st.error(f"Error loading Temporal model: {e}")
             return self._get_placeholder_model()
