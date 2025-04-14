@@ -45,6 +45,11 @@ class TemporalAnalyzer:
                     if name == 'Deepfake3DCNN':
                         return Deepfake3DCNN
                     return super().find_class(module, name)
+                    
+                def persistent_load(self, pid):
+                    # Handle persistent IDs - this is needed for more complex objects
+                    # In most cases, returning the pid itself works for PyTorch models
+                    return pid
             
             # For pickle-based models
             with open(self.model_path, 'rb') as f:
