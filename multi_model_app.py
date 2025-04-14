@@ -73,6 +73,11 @@ def display_detection_results(results, video_metadata):
     frames_analyzed = results["frames_analyzed"]
     model_type = results.get("model_type", "unknown")
     analysis_mode = results.get("analysis_mode", None)
+    is_placeholder = results.get("is_placeholder", False)
+    
+    # Display a warning if using a placeholder model
+    if is_placeholder:
+        st.warning("⚠️ **Using placeholder model for demonstration purposes only. Results are not reliable!**")
     
     # Determine the analysis mode string to display
     display_model_type = model_type.upper()
@@ -159,6 +164,11 @@ def display_detection_results(results, video_metadata):
     
     # Interpretation based on model type
     st.subheader("Analysis Interpretation")
+    
+    # Add disclaimer for placeholder model
+    if is_placeholder:
+        st.warning("**Model Status:** Using placeholder model. The actual model could not be loaded correctly. Results should not be used for real analysis.")
+    
     if is_deepfake:
         if model_type == "spatial":
             if confidence > 0.8:

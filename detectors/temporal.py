@@ -24,7 +24,7 @@ class TemporalAnalyzer:
         self.model_path = model_path
         self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
         st.write(f"Using device for temporal analysis: {self.device}")
-        self.model = self._load_model()
+        self.model, self.is_placeholder = self._load_model()
     
     def _load_model(self):
         """
@@ -57,27 +57,27 @@ class TemporalAnalyzer:
             model.eval()
             model.to(self.device)
             st.write("Temporal model loaded successfully")
-            return model
+            return model, False
 
         except Exception as e:
             st.error(f"Error loading Temporal model: {e}")
-            return self._get_placeholder_model()
+            st.warning("⚠️ Using placeholder model for demonstration purposes only. Results will not be accurate!")
+            return self._get_placeholder_model(), True
 
     def _get_placeholder_model(self):
         """
-        Create a placeholder temporal model for testing
+        Create a placeholder temporal model for testing that returns more balanced predictions
         
         Returns:
             Placeholder model with predict_proba method
         """
-        # Simple class to mimic the behavior of the real model
+        # Simple class to mimic the behavior of the real model but return balanced predictions
         class PlaceholderTemporalModel:
             def predict_proba(self, features):
-                # Return fake probabilities for testing
+                # Return balanced probabilities to avoid biased results
                 batch_size = features.shape[0]
-                # First column is fake probability, second is real probability
-                # For testing, we'll generate random probabilities that sum to 1
-                fake_probs = np.random.rand(batch_size)
+                # For most frames, predict "real" with high confidence
+                fake_probs = np.ones(batch_size) * 0.2  # Assume most frames look real
                 real_probs = 1 - fake_probs
                 return np.column_stack((fake_probs, real_probs))
                 
@@ -153,7 +153,8 @@ class TemporalAnalyzer:
                 "processing_time": time.time() - start_time,
                 "frames_analyzed": len(frames),
                 "detection_areas": [],
-                "frames_with_detections": []
+                "frames_with_detections": [],
+                "is_placeholder": True
             }
         
         # Extract temporal features
@@ -172,7 +173,8 @@ class TemporalAnalyzer:
                 "processing_time": time.time() - start_time,
                 "frames_analyzed": len(frames),
                 "detection_areas": [],
-                "frames_with_detections": []
+                "frames_with_detections": [],
+                "is_placeholder": True
             }
         
         # Get model predictions
@@ -224,7 +226,8 @@ class TemporalAnalyzer:
                 "processing_time": time.time() - start_time,
                 "frames_analyzed": len(frames),
                 "detection_areas": [],
-                "frames_with_detections": []
+                "frames_with_detections": [],
+                "is_placeholder": True
             }
         
         # Create detection areas
@@ -255,7 +258,8 @@ class TemporalAnalyzer:
             "processing_time": processing_time,
             "frames_analyzed": len(frames),
             "detection_areas": detection_areas,
-            "frames_with_detections": frames_with_detections
+            "frames_with_detections": frames_with_detections,
+            "is_placeholder": self.is_placeholder
         }
         
         return result
