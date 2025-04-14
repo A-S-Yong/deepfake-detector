@@ -345,6 +345,29 @@ class AudioVisualAnalyzer:
         model.eval()
         return model
     
+    def _check_if_video_has_audio(self, video_path: str) -> bool:
+        """
+        Check if a video file contains an audio stream
+        
+        Args:
+            video_path: Path to the video file
+            
+        Returns:
+            bool: True if the video has audio, False otherwise
+        """
+        try:
+            import ffmpeg
+            # Get information about the video file
+            probe = ffmpeg.probe(video_path)
+            
+            # Check if there are any audio streams
+            audio_streams = [stream for stream in probe.get('streams', []) if stream.get('codec_type') == 'audio']
+            
+            return len(audio_streams) > 0
+        except Exception as e:
+            st.warning(f"Error checking for audio streams: {e}")
+            return False  # Assume no audio if we can't check
+
     def analyze_frames(self, frames: List[np.ndarray], video_path: Optional[str] = None) -> Dict[str, Any]:
         """
         Analyze a list of frames for deepfake detection
@@ -396,23 +419,41 @@ class AudioVisualAnalyzer:
         valid_frames = 0
         frames_with_detections = []
         
+        # Extract audio features if video_path is provided
+        audio_features = None
+        has_audio = False
+        analysis_mode = "visual-only"
+        
         # Use torch.no_grad() to disable gradient calculation for inference
         with torch.no_grad():
-            # Extract audio features if video_path is provided
-            audio_features = None
             if video_path:
-                status_text.text("Extracting audio features...")
-                progress_bar.progress(0.1)
-                try:
-                    audio_features = extract_audio_features(video_path, self.device)
-                except Exception as e:
-                    st.warning(f"Could not extract audio features: {e}. Proceeding with visual only.")
+                # Check if the video has audio
+                has_audio = self._check_if_video_has_audio(video_path)
+                
+                if has_audio:
+                    status_text.text("Extracting audio features...")
+                    progress_bar.progress(0.1)
+                    try:
+                        audio_features = extract_audio_features(video_path, self.device)
+                        if audio_features is not None and audio_features.sum() != 0:
+                            analysis_mode = "audio-visual"
+                        else:
+                            st.warning("Audio extraction failed. Running visual-only analysis.")
+                    except Exception as e:
+                        st.warning(f"Could not extract audio features: {e}. Proceeding with visual-only analysis.")
+                else:
+                    st.info("No audio detected in the video. Running visual-only analysis.")
             
             for frame_idx, frame in enumerate(frames):
                 # Update progress
                 progress_percentage = 0.2 + (frame_idx + 1) / len(frames) * 0.8
                 progress_bar.progress(progress_percentage)
-                status_text.text(f"Analyzing frame {frame_idx+1}/{len(frames)} with audio-visual model...")
+                
+                # Update status text based on analysis mode
+                if analysis_mode == "audio-visual":
+                    status_text.text(f"Analyzing frame {frame_idx+1}/{len(frames)} with audio-visual model...")
+                else:
+                    status_text.text(f"Analyzing frame {frame_idx+1}/{len(frames)} with visual-only model...")
                 
                 # Preprocess frame
                 visual_tensor = preprocess_frame_spatial(frame)
@@ -424,7 +465,14 @@ class AudioVisualAnalyzer:
                 
                 # Get model prediction
                 try:
-                    output = self.model(visual_tensor, audio_features)
+                    # Handle missing audio features
+                    if audio_features is None:
+                        # Create dummy audio features filled with zeros
+                        dummy_audio = torch.zeros(1, 1024, device=self.device)
+                        output = self.model(visual_tensor, dummy_audio)
+                    else:
+                        # Normal operation with both audio and visual features
+                        output = self.model(visual_tensor, audio_features)
                     
                     # Apply softmax to get probabilities if not already applied
                     if not torch.allclose(output.sum(dim=1), torch.tensor(1.0, device=output.device)):
@@ -501,7 +549,8 @@ class AudioVisualAnalyzer:
             "processing_time": processing_time,
             "frames_analyzed": valid_frames,
             "detection_areas": detection_areas,
-            "frames_with_detections": frames_with_detections
+            "frames_with_detections": frames_with_detections,
+            "analysis_mode": analysis_mode
         }
         
         return result

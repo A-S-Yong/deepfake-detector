@@ -72,14 +72,21 @@ def display_detection_results(results, video_metadata):
     processing_time = results["processing_time"]
     frames_analyzed = results["frames_analyzed"]
     model_type = results.get("model_type", "unknown")
+    analysis_mode = results.get("analysis_mode", None)
+    
+    # Determine the analysis mode string to display
+    display_model_type = model_type.upper()
+    if model_type == "audio_visual" and analysis_mode:
+        if analysis_mode == "visual-only":
+            display_model_type = "AUDIO-VISUAL (VISUAL-ONLY MODE)"
     
     # Result header with model type
     if is_deepfake:
         st.markdown('<div class="result-box result-box-fake">', unsafe_allow_html=True)
-        st.markdown(f'<p class="big-font">⚠️ DEEPFAKE DETECTED ({model_type.upper()} ANALYSIS)</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="big-font">⚠️ DEEPFAKE DETECTED ({display_model_type} ANALYSIS)</p>', unsafe_allow_html=True)
     else:
         st.markdown('<div class="result-box result-box-real">', unsafe_allow_html=True)
-        st.markdown(f'<p class="big-font">✅ NO DEEPFAKE DETECTED ({model_type.upper()} ANALYSIS)</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="big-font">✅ NO DEEPFAKE DETECTED ({display_model_type} ANALYSIS)</p>', unsafe_allow_html=True)
     
     # Confidence percentage
     confidence_percent = confidence * 100
@@ -102,7 +109,12 @@ def display_detection_results(results, video_metadata):
         st.markdown("<strong>Analysis Details:</strong>", unsafe_allow_html=True)
         st.markdown(f"• Frames analyzed: {frames_analyzed}", unsafe_allow_html=True)
         st.markdown(f"• Processing time: {processing_time:.2f} seconds", unsafe_allow_html=True)
-        st.markdown(f"• Model type: {model_type.title()}", unsafe_allow_html=True)
+        
+        # Update model type display to show analysis mode
+        if model_type == "audio_visual" and analysis_mode == "visual-only":
+            st.markdown(f"• Model type: {model_type.title()} (Visual-only mode)", unsafe_allow_html=True)
+        else:
+            st.markdown(f"• Model type: {model_type.title()}", unsafe_allow_html=True)
     
     with col2:
         st.markdown("<strong>Video Properties:</strong>", unsafe_allow_html=True)
@@ -116,6 +128,10 @@ def display_detection_results(results, video_metadata):
     
     # Close result box
     st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Add a note about analysis mode if it's audio-visual but running in visual-only mode
+    if model_type == "audio_visual" and analysis_mode == "visual-only":
+        st.info("Note: This video doesn't contain audio or audio extraction failed. Analysis was performed using visual information only.")
     
     # Display detection areas
     if is_deepfake and "frames_with_detections" in results and results["frames_with_detections"]:
@@ -155,10 +171,16 @@ def display_detection_results(results, video_metadata):
             else:
                 st.info("Some temporal inconsistencies were detected that may indicate manipulation.")
         elif model_type == "audio_visual":
-            if confidence > 0.8:
-                st.warning("High probability that this video has been manipulated. The audio-visual analysis has detected inconsistencies between the audio and visual components.")
+            if analysis_mode == "visual-only":
+                if confidence > 0.8:
+                    st.warning("High probability that this video has been manipulated. The visual analysis has detected strong indicators of deepfake technology.")
+                else:
+                    st.info("Some visual indicators of manipulation were detected.")
             else:
-                st.info("Some minor audio-visual misalignments were detected that may indicate manipulation.")
+                if confidence > 0.8:
+                    st.warning("High probability that this video has been manipulated. The audio-visual analysis has detected inconsistencies between the audio and visual components.")
+                else:
+                    st.info("Some minor audio-visual misalignments were detected that may indicate manipulation.")
         st.info("Note: This is an automated analysis and should be used as one of multiple verification methods.")
     else:
         if model_type == "spatial":
@@ -166,7 +188,10 @@ def display_detection_results(results, video_metadata):
         elif model_type == "temporal":
             st.success("The motion patterns in this video appear natural with no temporal inconsistencies detected.")
         elif model_type == "audio_visual":
-            st.success("The audio and visual components of this video appear consistent with no significant misalignments detected.")
+            if analysis_mode == "visual-only":
+                st.success("The video appears visually authentic with no significant signs of manipulation detected.")
+            else:
+                st.success("The audio and visual components of this video appear consistent with no significant misalignments detected.")
 
 # Initialize session state
 if 'history' not in st.session_state:
@@ -326,7 +351,7 @@ elif page == "Upload Video":
                     st.header("Detection Results")
                     display_detection_results(results, video_metadata)
                     
-                    # Save to history
+                    # Save to history with analysis mode information
                     history_entry = {
                         "id": str(uuid.uuid4()),
                         "filename": uploaded_file.name,
@@ -334,7 +359,8 @@ elif page == "Upload Video":
                         "is_deepfake": results["is_deepfake"],
                         "confidence": results["confidence"],
                         "processing_time": results["processing_time"],
-                        "model_type": results.get("model_type", "unknown")
+                        "model_type": results.get("model_type", "unknown"),
+                        "analysis_mode": results.get("analysis_mode", None)
                     }
                     st.session_state.history.insert(0, history_entry)
                     
@@ -355,7 +381,10 @@ elif page == "Analysis History":
     else:
         # Display history
         for i, entry in enumerate(st.session_state.history):
-            with st.expander(f"{entry['filename']} - {entry['timestamp']}"):
+            # Create display title
+            display_title = f"{entry['filename']} - {entry['timestamp']}"
+            
+            with st.expander(display_title):
                 col1, col2, col3, col4 = st.columns(4)
                 
                 with col1:
@@ -371,8 +400,14 @@ elif page == "Analysis History":
                     st.write(f"{entry['confidence'] * 100:.2f}%")
                 
                 with col3:
+                    model_type = entry.get('model_type', 'unknown').title()
+                    analysis_mode = entry.get('analysis_mode', None)
+                    
                     st.write("**Model Used:**")
-                    st.write(f"{entry.get('model_type', 'unknown').title()}")
+                    if model_type == "Audio_visual" and analysis_mode == "visual-only":
+                        st.write(f"{model_type} (Visual-only mode)")
+                    else:
+                        st.write(f"{model_type}")
                 
                 with col4:
                     st.write("**Processing Time:**")
