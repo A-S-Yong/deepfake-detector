@@ -34,8 +34,11 @@ class TemporalAnalyzer:
             Loaded model
         """
         try:
-            model = torch.load(self.model_path, map_location=self.device)
-            model.eval()
+            from models import Deepfake3DCNN
+            model = torch.load(self.model_path,
+                            map_location=self.device,
+                            weights_only=False)          # ← changed
+            model.eval(); model.to(self.device)
             st.write("Temporal model loaded successfully")
             return model
         except Exception as e:
