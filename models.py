@@ -42,18 +42,47 @@ class Deepfake3DCNN(nn.Module):
     def predict_proba(self, features):
         """
         Add a predict_proba method to make the model compatible with the TemporalAnalyzer class.
-        This method creates scikit-learn-like probability outputs from PyTorch predictions.
+        This method handles the conversion from a sequence of frame features to the
+        format expected by the 3D CNN.
         
         Args:
-            features: Input features to predict on
+            features: Input features representing frame differences or features
             
         Returns:
             Array of shape (n_samples, 2) with probabilities for fake (0) and real (1) classes
         """
+        # Prepare the features for the 3D CNN (batch, channels, temporal_frames, height, width)
+        # Check if we're dealing with frame differences that need to be restructured
+        if len(features.shape) == 2:  # [num_frames, flattened_pixels]
+            # Convert to proper format for 3D CNN
+            # First, reshape back to 3D (temporal, height, width)
+            num_frames = features.shape[0]
+            
+            if features[0].shape[0] == 224*224*3:  # RGB flattened
+                # Reshape to [frames, channels, height, width]
+                features = features.reshape(num_frames, 3, 224, 224)
+                # Transpose to [channels, frames, height, width]
+                features = features.transpose(1, 0, 2, 3)
+                # Add batch dimension
+                features = np.expand_dims(features, 0)
+            elif features[0].shape[0] == 224*224:  # Grayscale flattened
+                # Reshape to [frames, height, width]
+                features = features.reshape(num_frames, 224, 224)
+                # Create three identical channels to match RGB input
+                features = np.stack([features, features, features], axis=1)
+                # Add batch dimension
+                features = np.expand_dims(features, 0)
+            else:
+                # Handle more general case
+                side_length = int(np.sqrt(features.shape[1]))
+                features = features.reshape(num_frames, side_length, side_length)
+                features = np.stack([features, features, features], axis=1)
+                features = np.expand_dims(features, 0)
+        
         # Convert numpy array to torch tensor if needed
         if isinstance(features, np.ndarray):
             features = torch.tensor(features, dtype=torch.float32)
-            
+        
         # Move to the model's device
         device = next(self.parameters()).device
         features = features.to(device)
@@ -64,11 +93,11 @@ class Deepfake3DCNN(nn.Module):
         # Get predictions without gradient tracking
         with torch.no_grad():
             # Forward pass
-            predictions = self(features)
+            outputs = self(features)
             
-            # Extract the probability values (model outputs single sigmoid value per sample)
-            fake_probs = predictions.cpu().numpy().flatten()
+            # Convert to probabilities
+            fake_probs = outputs.cpu().numpy().flatten()
             real_probs = 1 - fake_probs
             
-            # Stack as required by the TemporalAnalyzer (fake_prob, real_prob)
+            # Return in the format expected by the analyzer
             return np.column_stack((fake_probs, real_probs))

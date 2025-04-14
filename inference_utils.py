@@ -96,7 +96,7 @@ def preprocess_frame_spatial(frame: np.ndarray, target_size: Tuple[int, int] = (
         st.error(f"Error preprocessing frame: {e}")
         return None
 
-def preprocess_frame_temporal(frame: np.ndarray, target_size: Tuple[int, int] = (128, 128)) -> Optional[np.ndarray]:
+def preprocess_frame_temporal(frame: np.ndarray, target_size: Tuple[int, int] = (224, 224)) -> Optional[np.ndarray]:
     """
     Preprocess a frame for temporal model input
     
@@ -105,19 +105,19 @@ def preprocess_frame_temporal(frame: np.ndarray, target_size: Tuple[int, int] = 
         target_size: Target size for resizing (width, height)
         
     Returns:
-        Processed frame as flattened numpy array
+        Processed frame as numpy array in the format expected by the temporal model
     """
     try:
-        # Resize to a standard size
+        # Resize to the target size expected by the model
         resized = cv2.resize(frame, target_size)
         
-        # Convert to grayscale for temporal features
-        gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
+        # Convert to RGB
+        rgb_frame = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
         
-        # Flatten the frame
-        flattened = gray.flatten() / 255.0
+        # Normalize pixel values to [0, 1]
+        normalized = rgb_frame.astype(np.float32) / 255.0
         
-        return flattened
+        return normalized
     except Exception as e:
         st.error(f"Error preprocessing frame for temporal analysis: {e}")
         return None

@@ -106,13 +106,13 @@ class TemporalAnalyzer:
                 
         if not processed_frames:
             return None
-            
+                
         # Calculate frame differences (simple temporal feature)
         features = []
         for i in range(1, len(processed_frames)):
             diff = processed_frames[i] - processed_frames[i-1]
             features.append(diff)
-            
+                
         return np.array(features)
     
     def analyze_frames(self, frames: List[np.ndarray]) -> Dict[str, Any]:
