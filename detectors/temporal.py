@@ -27,23 +27,33 @@ class TemporalAnalyzer:
         self.model = self._load_model()
     
     def _load_model(self):
-        """
-        Load the temporal model from disk
-        
-        Returns:
-            Loaded model
-        """
         try:
-            from models import Deepfake3DCNN
-            model = torch.load(self.model_path,
-                            map_location=self.device,
-                            weights_only=False)          # ← changed
+            # ① import the real class
+            from models import Deepfake3DCNN                         # :contentReference[oaicite:0]{index=0}
+            from torch.serialization import add_safe_globals
+            add_safe_globals([Deepfake3DCNN])             # ← NEW (trust this class)
+
+            # ② make a fake module named "main" that points to the same class
+            import types, sys
+            fake_main = types.ModuleType("main")
+            fake_main.Deepfake3DCNN = Deepfake3DCNN
+            sys.modules["main"] = fake_main        # ← alias injected
+
+            # ③ now it will un‑pickle correctly
+            model = torch.load(
+                self.model_path,
+                map_location=self.device,
+                weights_only=False,                # full object load
+            )
+
             model.eval(); model.to(self.device)
             st.write("Temporal model loaded successfully")
             return model
+
         except Exception as e:
             st.error(f"Error loading Temporal model: {e}")
             return self._get_placeholder_model()
+
     
     def _get_placeholder_model(self):
         """
