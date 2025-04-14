@@ -97,23 +97,60 @@ class TemporalAnalyzer:
             st.error("Need at least 2 frames for temporal analysis")
             return None
             
+        # Progress indicator
+        progress_text = st.empty()
+        progress_text.text("Processing frames for temporal analysis...")
+            
         # Preprocess each frame
         processed_frames = []
-        for frame in frames:
-            processed = preprocess_frame_temporal(frame)
+        for i, frame in enumerate(frames):
+            processed = self._preprocess_frame(frame)
             if processed is not None:
                 processed_frames.append(processed)
+            
+            # Update progress every few frames
+            if i % 5 == 0:
+                progress_text.text(f"Processing frames: {i+1}/{len(frames)}")
                 
         if not processed_frames:
+            progress_text.text("Failed to extract features from frames")
             return None
-                
-        # Calculate frame differences (simple temporal feature)
-        features = []
-        for i in range(1, len(processed_frames)):
-            diff = processed_frames[i] - processed_frames[i-1]
-            features.append(diff)
-                
-        return np.array(features)
+            
+        progress_text.text("Calculating temporal differences between frames...")
+        
+        # Calculate frame differences
+        features = np.array(processed_frames)
+        
+        # Clear progress indicator
+        progress_text.empty()
+        
+        return features
+    
+    def _preprocess_frame(self, frame: np.ndarray) -> Optional[np.ndarray]:
+        """
+        Internal method to preprocess a frame for the temporal model
+        Keeps the spatial structure intact for the 3D CNN
+        
+        Args:
+            frame: Input video frame
+            
+        Returns:
+            Preprocessed frame as numpy array
+        """
+        try:
+            # Resize to target size
+            frame = cv2.resize(frame, (224, 224))
+            
+            # Convert to RGB
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # Normalize pixel values
+            normalized = frame_rgb.astype(np.float32) / 255.0
+            
+            return normalized
+        except Exception as e:
+            st.error(f"Error preprocessing frame: {e}")
+            return None
     
     def analyze_frames(self, frames: List[np.ndarray]) -> Dict[str, Any]:
         """
