@@ -266,7 +266,7 @@ with col2:
 
 # Sidebar for app navigation
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Home", "Upload Video", "Analysis History"])
+page = st.sidebar.radio("Go to", ["Home", "Upload Video", "Analysis History", "About Us"])
 
 if page == "Home":
     st.markdown("## See beyond the surface, uncover digital truth with our advanced Deepfake Detector!")
@@ -436,6 +436,9 @@ elif page == "Analysis History":
                 with col4:
                     st.write("**Processing Time:**")
                     st.write(f"{entry['processing_time']:.2f} seconds")
+
+elif page == "About Us":
+    st.header("About Us")
 
 # Footer
 st.sidebar.markdown("---")
