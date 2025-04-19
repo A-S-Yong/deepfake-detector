@@ -488,7 +488,6 @@ elif page == "About Us":
             st.markdown(f"""
             <div style="background-color: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px; height: 150px; text-align: center;">
                 <h4>{member['name']}</h4>
-                <p>{member['role']}</p>
                 <a href="{member['linkedin']}" target="_blank" style="text-decoration: none;">
                     {linkedin_icon} LinkedIn Profile
                 </a>
