@@ -442,7 +442,7 @@ elif page == "About Us":
     
     st.markdown("""
     <div style="text-align: center; margin-bottom: 30px;">
-        <p style="color: #1a1a1a;">We are a team of AI enthusiasts and researchers dedicated to developing tools that help identify deepfake content.
+        <p style="color: #f8f9fa;">We are a team of AI enthusiasts and researchers dedicated to developing tools that help identify deepfake content.
         Our mission is to promote media literacy and provide accessible technology for verifying digital content.</p>
     </div>
     """, unsafe_allow_html=True)
@@ -457,7 +457,7 @@ elif page == "About Us":
             "linkedin": "https://www.linkedin.com/in/astrid-yong-3435b1168/"
         },
         {
-            "name": "Elbert",
+            "name": "Elbert Joss",
             "linkedin": "https://www.linkedin.com/in/elbert-joss-susantong-82bb73262?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app"
         },
         {
@@ -469,7 +469,7 @@ elif page == "About Us":
             "linkedin": "https://www.linkedin.com/in/jeriel-chow"
         },
         {
-            "name": "Shawn",
+            "name": "Shawn Kiswoto",
             "linkedin": "https://www.linkedin.com/in/shawn-kiswoto-865859198/"
         }
     ]
@@ -499,8 +499,8 @@ elif page == "About Us":
     
     # Define the collaborator
     collaborator = {
-        "name": "John Smith",
-        "linkedin": "https://www.linkedin.com/in/john-smith/"
+        "name": "Dr Rex Yeap",
+        "linkedin": "https://www.linkedin.com/in/dryeap/"
     }
     
     # Display the collaborator
