@@ -442,7 +442,7 @@ elif page == "About Us":
     
     st.markdown("""
     <div style="text-align: center; margin-bottom: 30px;">
-        <p>We are a team of AI enthusiasts and researchers dedicated to developing tools that help identify deepfake content.
+        <p style="color: #1a1a1a;">We are a team of AI enthusiasts and researchers dedicated to developing tools that help identify deepfake content.
         Our mission is to promote media literacy and provide accessible technology for verifying digital content.</p>
     </div>
     """, unsafe_allow_html=True)
@@ -466,10 +466,10 @@ elif page == "About Us":
         },
         {
             "name": "Jeriel Chow",
-            "linkedin": "www.linkedin.com/in/jeriel-chow"
+            "linkedin": "https://www.linkedin.com/in/jeriel-chow"
         },
         {
-            "name": "Shawn ",
+            "name": "Shawn",
             "linkedin": "https://www.linkedin.com/in/shawn-kiswoto-865859198/"
         }
     ]
@@ -481,27 +481,46 @@ elif page == "About Us":
     </svg>
     """
     
-    # Display team members in a 2x3 grid
+    # Display team members in a grid
     cols = st.columns(3)
     for i, member in enumerate(team_members):
         with cols[i % 3]:
             st.markdown(f"""
-            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px; height: 150px; text-align: center;">
-                <h4>{member['name']}</h4>
-                <a href="{member['linkedin']}" target="_blank" style="text-decoration: none;">
+            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px; height: 120px; text-align: center; color: #1a1a1a;">
+                <h4 style="color: #1a1a1a;">{member['name']}</h4>
+                <a href="{member['linkedin']}" target="_blank" style="text-decoration: none; color: #0077b5;">
                     {linkedin_icon} LinkedIn Profile
                 </a>
             </div>
             """, unsafe_allow_html=True)
     
+    # Collaborator section
+    st.subheader("Collaborator")
+    
+    # Define the collaborator
+    collaborator = {
+        "name": "John Smith",
+        "linkedin": "https://www.linkedin.com/in/john-smith/"
+    }
+    
+    # Display the collaborator
+    st.markdown(f"""
+    <div style="background-color: #e7f1ff; padding: 20px; border-radius: 10px; margin-bottom: 30px; text-align: center; color: #1a1a1a;">
+        <h4 style="color: #1a1a1a;">{collaborator['name']}</h4>
+        <a href="{collaborator['linkedin']}" target="_blank" style="text-decoration: none; color: #0077b5;">
+            {linkedin_icon} LinkedIn Profile
+        </a>
+    </div>
+    """, unsafe_allow_html=True)
+    
     # Acknowledgment section
     st.subheader("Acknowledgments")
     
     st.markdown("""
-    <div style="background-color: #f0f4f8; padding: 20px; border-radius: 10px; margin-top: 30px; text-align: center;">
-        <p>We wish to formally acknowledge and thank SIM DAC for their invaluable support and the opportunity extended to us. 
+    <div style="background-color: #f0f4f8; padding: 20px; border-radius: 10px; margin-top: 10px; text-align: center; color: #1a1a1a;">
+        <p style="color: #1a1a1a;">We wish to formally acknowledge and thank SIM DAC for their invaluable support and the opportunity extended to us. 
         Their commitment and partnership have significantly contributed to our development and success.</p>
-        <a href="https://www.linkedin.com/company/simdac/" target="_blank" style="text-decoration: none;">
+        <a href="https://www.linkedin.com/company/simdac/" target="_blank" style="text-decoration: none; color: #0077b5;">
             {linkedin_icon} SIM DAC LinkedIn
         </a>
     </div>
