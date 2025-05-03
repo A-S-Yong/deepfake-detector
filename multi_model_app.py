@@ -483,7 +483,7 @@ if page == "Home":
     
     st.markdown("### Ensemble Analysis")
     st.markdown("""
-    <div style="background-color: #f8f9fa; color: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+    <div style="background-color: #f8f9fa; color: #333333; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
         <h4>Combined Model Approach</h4>
         <p>Our new ensemble analysis runs <strong>all three models simultaneously</strong> and combines their results for a more robust detection.</p>
         <ul>
