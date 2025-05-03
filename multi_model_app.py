@@ -20,6 +20,7 @@ from detectors.spatial import SpatialAnalyzer
 from detectors.temporal import TemporalAnalyzer
 from detectors.audio_visual import AudioVisualAnalyzer
 from inference_utils import extract_video_metadata, format_file_size, format_duration
+from detectors.multi_model_analyzer import MultiModelAnalyzer
 
 # Model file ID mappings
 MODEL_FILE_IDS = {
@@ -203,6 +204,182 @@ def display_detection_results(results, video_metadata):
             else:
                 st.success("The audio and visual components of this video appear consistent with no significant misalignments detected.")
 
+# Function to display ensemble detection results
+def display_ensemble_results(results, video_metadata):
+    """Display deepfake detection results from multiple models in a visually appealing format"""
+    is_deepfake = results["is_deepfake"]
+    confidence = results["confidence"]
+    processing_time = results["processing_time"]
+    frames_analyzed = results["frames_analyzed"]
+    weights = results.get("weights", {})
+    individual_results = results.get("individual_results", {})
+    is_placeholder = results.get("is_placeholder", False)
+    
+    # Display a warning if using a placeholder model
+    if is_placeholder:
+        st.warning("⚠️ **Using placeholder models for demonstration purposes only. Results are not reliable!**")
+    
+    # Result header with model type
+    if is_deepfake:
+        st.markdown('<div class="result-box result-box-fake">', unsafe_allow_html=True)
+        st.markdown(f'<p class="big-font">⚠️ DEEPFAKE DETECTED (ENSEMBLE ANALYSIS)</p>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="result-box result-box-real">', unsafe_allow_html=True)
+        st.markdown(f'<p class="big-font">✅ NO DEEPFAKE DETECTED (ENSEMBLE ANALYSIS)</p>', unsafe_allow_html=True)
+    
+    # Confidence percentage
+    confidence_percent = confidence * 100
+    st.markdown(f"<p>Detection confidence: <strong>{confidence_percent:.2f}%</strong></p>", unsafe_allow_html=True)
+    
+    # Confidence meter
+    if is_deepfake:
+        st.markdown(
+            f'<div style="background-color: #dc3545; width: {confidence_percent}%; height: 20px;" class="confidence-meter"></div>',
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown(
+            f'<div style="background-color: #198754; width: {confidence_percent}%; height: 20px;" class="confidence-meter"></div>',
+            unsafe_allow_html=True
+        )
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("<strong>Analysis Details:</strong>", unsafe_allow_html=True)
+        st.markdown(f"• Frames analyzed: {frames_analyzed}", unsafe_allow_html=True)
+        st.markdown(f"• Total processing time: {processing_time:.2f} seconds", unsafe_allow_html=True)
+        st.markdown(f"• Model type: Ensemble of multiple models", unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("<strong>Video Properties:</strong>", unsafe_allow_html=True)
+        if video_metadata:
+            if "width" in video_metadata and "height" in video_metadata:
+                st.markdown(f"• Resolution: {video_metadata['width']} × {video_metadata['height']}", unsafe_allow_html=True)
+            if "duration" in video_metadata:
+                st.markdown(f"• Duration: {video_metadata['duration']}", unsafe_allow_html=True)
+            if "fps" in video_metadata:
+                st.markdown(f"• Frame rate: {video_metadata['fps']:.2f} fps", unsafe_allow_html=True)
+    
+    # Close result box
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Display individual model results
+    st.subheader("Individual Model Results")
+    
+    # Create a table for model results
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown("<strong>Model</strong>", unsafe_allow_html=True)
+    with col2:
+        st.markdown("<strong>Result</strong>", unsafe_allow_html=True)
+    with col3:
+        st.markdown("<strong>Confidence</strong>", unsafe_allow_html=True)
+    with col4:
+        st.markdown("<strong>Weight</strong>", unsafe_allow_html=True)
+    
+    # Add rows for each model
+    for model_type, result in individual_results.items():
+        model_is_deepfake = result.get("is_deepfake", False)
+        model_confidence = result.get("confidence", 0.0) * 100
+        model_weight = weights.get(model_type, 0.0) * 100
+        
+        # Format the model type name
+        display_model_type = model_type.replace('_', '-').title()
+        
+        # Special case for audio-visual model with visual-only mode
+        if model_type == "audio_visual" and result.get("analysis_mode") == "visual-only":
+            display_model_type = "Audio-Visual (Visual Only)"
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.write(display_model_type)
+        with col2:
+            if model_is_deepfake:
+                st.markdown("⚠️ **Deepfake**")
+            else:
+                st.markdown("✅ **Real**")
+        with col3:
+            # Create mini confidence bar
+            if model_is_deepfake:
+                st.markdown(
+                    f'<div style="background-color: #dc3545; width: {model_confidence}%; height: 10px; border-radius: 5px;"></div>',
+                    unsafe_allow_html=True
+                )
+            else:
+                st.markdown(
+                    f'<div style="background-color: #198754; width: {model_confidence}%; height: 10px; border-radius: 5px;"></div>',
+                    unsafe_allow_html=True
+                )
+            st.write(f"{model_confidence:.1f}%")
+        with col4:
+            st.write(f"{model_weight:.1f}%")
+    
+    # Display detection areas
+    if is_deepfake and "frames_with_detections" in results and results["frames_with_detections"]:
+        st.subheader("Frames with Detected Manipulations")
+        
+        # Get frames with highest fake probability
+        frames_to_show = results["frames_with_detections"]
+        
+        cols = st.columns(min(len(frames_to_show), 5))
+        for i, frame_data in enumerate(frames_to_show):
+            if i < len(cols):
+                with cols[i]:
+                    # Unpack frame data (frame_idx, frame, prob, model_type)
+                    frame_idx, frame, prob, model_type = frame_data
+                    
+                    # Format model type name
+                    display_model_type = model_type.replace('_', '-').title()
+                    
+                    # Convert frame to RGB for display
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    # Draw a red box around the center area as a placeholder for face detection
+                    h, w = frame.shape[0], frame.shape[1]
+                    cv2.rectangle(
+                        frame_rgb,
+                        (w//4, h//4),
+                        (w*3//4, h*3//4),
+                        (255, 0, 0),
+                        2
+                    )
+                    st.image(frame_rgb, caption=f"Frame {frame_idx}: {prob*100:.1f}% fake\n({display_model_type})")
+    
+    # Interpretation of ensemble results
+    st.subheader("Analysis Interpretation")
+    
+    if is_placeholder:
+        st.warning("**Model Status:** Using placeholder models. The actual models could not be loaded correctly. Results should not be used for real analysis.")
+    
+    if is_deepfake:
+        if confidence > 0.8:
+            st.warning("High probability that this video has been manipulated. The ensemble analysis has detected strong indicators of deepfake technology across multiple detection methods.")
+        else:
+            st.info("Some indicators of manipulation were detected by the ensemble of models. The combined analysis suggests possible manipulation, but with lower confidence.")
+        
+        # Add model-specific interpretations
+        st.markdown("**Individual model findings:**")
+        for model_type, result in individual_results.items():
+            if result.get("is_deepfake", False):
+                model_confidence = result.get("confidence", 0.0)
+                display_model_type = model_type.replace('_', '-').title()
+                
+                if model_type == "spatial" and model_confidence > 0.6:
+                    st.markdown(f"• {display_model_type}: Detected strong visual indicators in individual frames.")
+                elif model_type == "temporal" and model_confidence > 0.6:
+                    st.markdown(f"• {display_model_type}: Identified unnatural motion patterns between frames.")
+                elif model_type == "audio_visual" and model_confidence > 0.6:
+                    if result.get("analysis_mode") == "visual-only":
+                        st.markdown(f"• {display_model_type}: Found visual inconsistencies using the visual-only mode.")
+                    else:
+                        st.markdown(f"• {display_model_type}: Detected misalignments between audio and visual elements.")
+    else:
+        if confidence > 0.8:
+            st.success("The video appears authentic based on strong agreement across multiple detection methods.")
+        else:
+            st.info("The ensemble analysis leans toward authenticity, but with some uncertainty. Some individual models may have detected potential manipulations.")
+    
+    st.info("Note: This is an automated analysis using an ensemble of detection methods. Results should be used as one of multiple verification approaches.")
+
 # Initialize session state
 if 'history' not in st.session_state:
     st.session_state.history = []
@@ -304,6 +481,19 @@ if page == "Home":
         st.markdown("Examines the relationship between audio and visual components.")
         st.markdown("**Best for:** Detecting lip-sync issues and audio-visual misalignments.")
     
+    st.markdown("### Ensemble Analysis")
+    st.markdown("""
+    <div style="background-color: #e7f1ff; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+        <h4>Combined Model Approach</h4>
+        <p>Our new ensemble analysis runs <strong>all three models simultaneously</strong> and combines their results for a more robust detection.</p>
+        <ul>
+            <li><strong>Higher accuracy:</strong> Leverages the strengths of each individual model</li>
+            <li><strong>Customizable weights:</strong> Adjust how much each model contributes to the final decision</li>
+            <li><strong>Comprehensive detection:</strong> Catches manipulations that might be missed by a single approach</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("### How to Use")
     st.markdown("1. Navigate to 'Upload Video' using the sidebar")
     st.markdown("2. Upload your video file")
@@ -342,38 +532,85 @@ elif page == "Upload Video":
             # Extract video metadata
             video_metadata = extract_video_metadata(temp_file_path)
             
-            # Model selection
+            # Model selection section
             st.markdown('<div class="model-select">', unsafe_allow_html=True)
             st.subheader("Select Analysis Method")
             model_type = st.radio(
                 "Choose which model to use for analysis:",
-                ["Spatial Analysis", "Temporal Analysis", "Audio-Visual Analysis"],
-                help="Each model specializes in different aspects of deepfake detection"
+                ["Spatial Analysis", "Temporal Analysis", "Audio-Visual Analysis", "Ensemble Analysis (All Models)"],
+                help="Each model specializes in different aspects of deepfake detection. The ensemble combines all models."
             )
+            
+            # Add weights adjustment if ensemble is selected
+            weights = {"spatial": 0.4, "temporal": 0.3, "audio_visual": 0.3}
+            if "Ensemble Analysis" in model_type:
+                st.markdown("#### Adjust Model Weights")
+                st.markdown("You can adjust how much each model contributes to the final decision:")
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    weights["spatial"] = st.slider("Spatial Weight", 0.0, 1.0, 0.4, 0.1)
+                with col2:
+                    weights["temporal"] = st.slider("Temporal Weight", 0.0, 1.0, 0.3, 0.1)
+                with col3:
+                    weights["audio_visual"] = st.slider("Audio-Visual Weight", 0.0, 1.0, 0.3, 0.1)
+                
+                # Normalize weights to sum to 1
+                total_weight = sum(weights.values())
+                if total_weight > 0:
+                    normalized_weights = {k: v / total_weight for k, v in weights.items()}
+                    weights = normalized_weights
+                    
+                    # Display the normalized weights as percentages
+                    st.markdown("#### Normalized Weights:")
+                    st.markdown(f"- Spatial: {weights['spatial']*100:.1f}%")
+                    st.markdown(f"- Temporal: {weights['temporal']*100:.1f}%")
+                    st.markdown(f"- Audio-Visual: {weights['audio_visual']*100:.1f}%")
+            
             st.markdown('</div>', unsafe_allow_html=True)
             
             # Run analysis button
             if st.button("Run Analysis", type="primary"):
                 try:
                     # Initialize appropriate detector based on selection
-                    with st.spinner(f"Loading {model_type.split()[0].lower()} detection model..."):
-                        if "Spatial" in model_type:
-                            model_path = download_model("spatial")
-                            detector = SpatialAnalyzer(model_path)
-                        elif "Temporal" in model_type:
-                            model_path = download_model("temporal")
-                            detector = TemporalAnalyzer(model_path)
-                        else:  # Audio-Visual
-                            model_path = download_model("audio_visual")
-                            detector = AudioVisualAnalyzer(model_path)
-                    
-                    # Analyze for deepfakes
-                    with st.spinner(f"Analyzing video using {model_type}..."):
-                        results = detector.analyze_video(temp_file_path)
-                    
-                    # Display results
-                    st.header("Detection Results")
-                    display_detection_results(results, video_metadata)
+                    if "Ensemble Analysis" in model_type:
+                        with st.spinner("Loading all detection models..."):
+                            # Download all models
+                            model_paths = {}
+                            for model_key in MODEL_PATHS:
+                                model_path = download_model(model_key)
+                                model_paths[model_key] = model_path
+                            
+                            # Initialize the ensemble analyzer
+                            detector = MultiModelAnalyzer(model_paths)
+                        
+                        # Analyze for deepfakes using the ensemble
+                        with st.spinner("Running ensemble analysis with all models..."):
+                            results = detector.analyze_video(temp_file_path, weights=weights)
+                        
+                        # Display results
+                        st.header("Ensemble Detection Results")
+                        display_ensemble_results(results, video_metadata)
+                    else:
+                        # Original code for individual models
+                        with st.spinner(f"Loading {model_type.split()[0].lower()} detection model..."):
+                            if "Spatial" in model_type:
+                                model_path = download_model("spatial")
+                                detector = SpatialAnalyzer(model_path)
+                            elif "Temporal" in model_type:
+                                model_path = download_model("temporal")
+                                detector = TemporalAnalyzer(model_path)
+                            else:  # Audio-Visual
+                                model_path = download_model("audio_visual")
+                                detector = AudioVisualAnalyzer(model_path)
+                        
+                        # Analyze for deepfakes
+                        with st.spinner(f"Analyzing video using {model_type}..."):
+                            results = detector.analyze_video(temp_file_path)
+                        
+                        # Display results
+                        st.header("Detection Results")
+                        display_detection_results(results, video_metadata)
                     
                     # Save to history with analysis mode information
                     history_entry = {
@@ -424,14 +661,16 @@ elif page == "Analysis History":
                     st.write(f"{entry['confidence'] * 100:.2f}%")
                 
                 with col3:
-                    model_type = entry.get('model_type', 'unknown').title()
+                    model_type = entry.get('model_type', 'unknown')
                     analysis_mode = entry.get('analysis_mode', None)
                     
                     st.write("**Model Used:**")
-                    if model_type == "Audio_visual" and analysis_mode == "visual-only":
-                        st.write(f"{model_type} (Visual-only mode)")
+                    if model_type == "ensemble":
+                        st.write("Ensemble (All Models)")
+                    elif model_type == "audio_visual" and analysis_mode == "visual-only":
+                        st.write("Audio-Visual (Visual-only mode)")
                     else:
-                        st.write(f"{model_type}")
+                        st.write(f"{model_type.title()}")
                 
                 with col4:
                     st.write("**Processing Time:**")
