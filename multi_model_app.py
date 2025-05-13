@@ -315,9 +315,13 @@ def display_ensemble_results(results, video_metadata):
         for i, frame_data in enumerate(frames_to_show):
             if i < len(cols):
                 with cols[i]:
-                    # Unpack frame data (frame_idx, frame, prob, model_type)
-                    frame_idx, frame, prob, model_type = frame_data
-                    
+                    # Handle both 3-element and 4-element tuples
+                    if len(frame_data) == 4:
+                        frame_idx, frame, prob, model_type = frame_data
+                    else:
+                        frame_idx, frame, prob = frame_data
+                        model_type = "unknown"  # Default model type if not provided
+                        
                     # Format model type name
                     display_model_type = model_type.replace('_', '-').title()
                     

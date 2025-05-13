@@ -149,9 +149,14 @@ class MultiModelAnalyzer:
             # Collect frames with detections
             if "frames_with_detections" in result:
                 for frame_data in result["frames_with_detections"]:
-                    # Add model type to frame data
-                    # frame_data is a tuple of (frame_idx, frame, prob)
-                    combined_frames_with_detections.append((frame_data[0], frame_data[1], frame_data[2], model_type))
+                    # Make sure all frame data has model_type
+                    # Check if frame_data already has model_type (is a 4-tuple)
+                    if len(frame_data) == 3:
+                        # frame_data is a tuple of (frame_idx, frame, prob)
+                        combined_frames_with_detections.append((frame_data[0], frame_data[1], frame_data[2], model_type))
+                    else:
+                        # Already has model_type or other format, add as is
+                        combined_frames_with_detections.append(frame_data)
         
         # Final determination based on weighted score
         final_is_deepfake = weighted_deepfake_score > 0
