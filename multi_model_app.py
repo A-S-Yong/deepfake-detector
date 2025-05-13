@@ -536,9 +536,9 @@ elif page == "Upload Video":
                 
                 col1, col2 = st.columns(2)
                 with col1:
-                    weights["spatial"] = st.slider("Spatial Weight", 0.0, 1.0, 0.4, 0.1)
+                    weights["spatial"] = st.slider("Spatial Weight", 0.0, 1.0, 0.8, 0.1)
                 with col2:
-                    weights["audio_visual"] = st.slider("Audio-Visual Weight", 0.0, 1.0, 0.3, 0.1)
+                    weights["audio_visual"] = st.slider("Audio-Visual Weight", 0.0, 1.0, 0.2, 0.1)
                 
                 # Normalize weights to sum to 1
                 total_weight = sum(weights.values())
