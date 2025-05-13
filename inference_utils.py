@@ -96,32 +96,6 @@ def preprocess_frame_spatial(frame: np.ndarray, target_size: Tuple[int, int] = (
         st.error(f"Error preprocessing frame: {e}")
         return None
 
-def preprocess_frame_temporal(frame: np.ndarray, target_size: Tuple[int, int] = (224, 224)) -> Optional[np.ndarray]:
-    """
-    Preprocess a frame for temporal model input
-    
-    Args:
-        frame: Raw frame as numpy array
-        target_size: Target size for resizing (width, height)
-        
-    Returns:
-        Processed frame as numpy array in the format expected by the temporal model
-    """
-    try:
-        # Resize to the target size expected by the model
-        resized = cv2.resize(frame, target_size)
-        
-        # Convert to RGB
-        rgb_frame = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
-        
-        # Normalize pixel values to [0, 1]
-        normalized = rgb_frame.astype(np.float32) / 255.0
-        
-        return normalized
-    except Exception as e:
-        st.error(f"Error preprocessing frame for temporal analysis: {e}")
-        return None
-
 def extract_audio_features(video_path: str, device: str) -> torch.Tensor:
     audio_path = video_path.rsplit('.', 1)[0] + '.wav'
     spectrogram = extract_spectrogram(audio_path)  # shape: (128, 128)

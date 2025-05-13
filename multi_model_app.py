@@ -17,7 +17,6 @@ if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
 
 # Import our custom modules
 from detectors.spatial import SpatialAnalyzer
-from detectors.temporal import TemporalAnalyzer
 from detectors.audio_visual import AudioVisualAnalyzer
 from inference_utils import extract_video_metadata, format_file_size, format_duration
 from detectors.multi_model_analyzer import MultiModelAnalyzer
@@ -25,13 +24,11 @@ from detectors.multi_model_analyzer import MultiModelAnalyzer
 # Model file ID mappings
 MODEL_FILE_IDS = {
     "spatial": "19JPcDF8NEJFkFt41WTBbw3TjEDrxq0Xz",  # Swin Transformer model
-    "temporal": "1e2Vf3nJpMdwWKLT1b3FHPPq5bX4muRv6",   # Replace with actual file ID
     "audio_visual": "1j_0jJWOxUGkJKRCGxrdR2HFzt5csKwF0"  # Replace with actual file ID
 }
 
 MODEL_PATHS = {
     "spatial": "model/best_swin_transformer_model.pth",
-    "temporal": "model/deepfake_cnn_model.pkl",
     "audio_visual": "model/audio-visual.pth"
 }
 
@@ -43,7 +40,7 @@ def download_model(model_type: str) -> pathlib.Path:
     The file is pulled once from Google Drive and then cached by Streamlit.
     
     Args:
-        model_type: Type of model to download ('spatial', 'temporal', or 'audio_visual')
+        model_type: Type of model to download ('spatial' or 'audio_visual')
         
     Returns:
         Path to the downloaded model file
@@ -176,11 +173,6 @@ def display_detection_results(results, video_metadata):
                 st.warning("High probability that this video has been manipulated. The spatial analysis has detected strong visual indicators of deepfake technology.")
             else:
                 st.info("Some visual indicators of manipulation were detected in individual frames.")
-        elif model_type == "temporal":
-            if confidence > 0.8:
-                st.warning("High probability that this video has been manipulated. The temporal analysis has detected unnatural motion patterns between frames.")
-            else:
-                st.info("Some temporal inconsistencies were detected that may indicate manipulation.")
         elif model_type == "audio_visual":
             if analysis_mode == "visual-only":
                 if confidence > 0.8:
@@ -196,8 +188,6 @@ def display_detection_results(results, video_metadata):
     else:
         if model_type == "spatial":
             st.success("The video appears visually authentic with no significant signs of manipulation detected.")
-        elif model_type == "temporal":
-            st.success("The motion patterns in this video appear natural with no temporal inconsistencies detected.")
         elif model_type == "audio_visual":
             if analysis_mode == "visual-only":
                 st.success("The video appears visually authentic with no significant signs of manipulation detected.")
@@ -365,8 +355,6 @@ def display_ensemble_results(results, video_metadata):
                 
                 if model_type == "spatial" and model_confidence > 0.6:
                     st.markdown(f"• {display_model_type}: Detected strong visual indicators in individual frames.")
-                elif model_type == "temporal" and model_confidence > 0.6:
-                    st.markdown(f"• {display_model_type}: Identified unnatural motion patterns between frames.")
                 elif model_type == "audio_visual" and model_confidence > 0.6:
                     if result.get("analysis_mode") == "visual-only":
                         st.markdown(f"• {display_model_type}: Found visual inconsistencies using the visual-only mode.")
@@ -472,11 +460,6 @@ if page == "Home":
         st.markdown("**Best for:** Detecting visual artifacts, face swaps, and unrealistic features.")
     
     with col2:
-        st.markdown("#### Temporal Analysis")
-        st.markdown("Analyzes motion and consistency between frames over time.")
-        st.markdown("**Best for:** Detecting unnatural movements, flickering, and temporal inconsistencies.")
-    
-    with col3:
         st.markdown("#### Audio-Visual Analysis")
         st.markdown("Examines the relationship between audio and visual components.")
         st.markdown("**Best for:** Detecting lip-sync issues and audio-visual misalignments.")
@@ -537,22 +520,20 @@ elif page == "Upload Video":
             st.subheader("Select Analysis Method")
             model_type = st.radio(
                 "Choose which model to use for analysis:",
-                ["Spatial Analysis", "Temporal Analysis", "Audio-Visual Analysis", "Ensemble Analysis (All Models)"],
+                ["Spatial Analysis", "Audio-Visual Analysis", "Ensemble Analysis (All Models)"],
                 help="Each model specializes in different aspects of deepfake detection. The ensemble combines all models."
             )
             
             # Add weights adjustment if ensemble is selected
-            weights = {"spatial": 0.4, "temporal": 0.3, "audio_visual": 0.3}
+            weights = {"spatial": 0.5, "audio_visual": 0.5}
             if "Ensemble Analysis" in model_type:
                 st.markdown("#### Adjust Model Weights")
                 st.markdown("You can adjust how much each model contributes to the final decision:")
                 
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3 = st.columns(2)
                 with col1:
                     weights["spatial"] = st.slider("Spatial Weight", 0.0, 1.0, 0.4, 0.1)
                 with col2:
-                    weights["temporal"] = st.slider("Temporal Weight", 0.0, 1.0, 0.3, 0.1)
-                with col3:
                     weights["audio_visual"] = st.slider("Audio-Visual Weight", 0.0, 1.0, 0.3, 0.1)
                 
                 # Normalize weights to sum to 1
@@ -564,7 +545,6 @@ elif page == "Upload Video":
                     # Display the normalized weights as percentages
                     st.markdown("#### Normalized Weights:")
                     st.markdown(f"- Spatial: {weights['spatial']*100:.1f}%")
-                    st.markdown(f"- Temporal: {weights['temporal']*100:.1f}%")
                     st.markdown(f"- Audio-Visual: {weights['audio_visual']*100:.1f}%")
             
             st.markdown('</div>', unsafe_allow_html=True)
@@ -597,9 +577,6 @@ elif page == "Upload Video":
                             if "Spatial" in model_type:
                                 model_path = download_model("spatial")
                                 detector = SpatialAnalyzer(model_path)
-                            elif "Temporal" in model_type:
-                                model_path = download_model("temporal")
-                                detector = TemporalAnalyzer(model_path)
                             else:  # Audio-Visual
                                 model_path = download_model("audio_visual")
                                 detector = AudioVisualAnalyzer(model_path)

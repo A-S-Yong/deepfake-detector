@@ -14,7 +14,6 @@ if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
 
 # Import analyzers
 from detectors.spatial import SpatialAnalyzer
-from detectors.temporal import TemporalAnalyzer
 from detectors.audio_visual import AudioVisualAnalyzer
 from inference_utils import extract_frames, extract_video_metadata
 
@@ -27,7 +26,7 @@ class MultiModelAnalyzer:
         
         Args:
             model_paths: Dictionary with model paths for each detector type
-                         (keys: 'spatial', 'temporal', 'audio_visual')
+                         (keys: 'spatial', 'audio_visual')
             device: Device to run models on ('cuda' or 'cpu')
         """
         self.model_paths = model_paths
@@ -40,7 +39,6 @@ class MultiModelAnalyzer:
         
         try:
             self.analyzers['spatial'] = SpatialAnalyzer(model_paths['spatial'], self.device)
-            self.analyzers['temporal'] = TemporalAnalyzer(model_paths['temporal'], self.device)
             self.analyzers['audio_visual'] = AudioVisualAnalyzer(model_paths['audio_visual'], self.device)
         except Exception as e:
             st.error(f"Error initializing analyzers: {e}")
@@ -55,7 +53,7 @@ class MultiModelAnalyzer:
             video_path: Path to the video file
             max_frames: Maximum number of frames to extract
             weights: Dictionary with weights for each model type 
-                    (keys: 'spatial', 'temporal', 'audio_visual')
+                    (keys: 'spatial', 'audio_visual')
                     Default weights will be used if not provided
             
         Returns:
@@ -66,9 +64,8 @@ class MultiModelAnalyzer:
         # Default weights if not provided
         if weights is None:
             weights = {
-                'spatial': 0.4,   # Spatial analysis often provides good per-frame accuracy
-                'temporal': 0.3,  # Temporal looks at consistency between frames
-                'audio_visual': 0.3  # Audio-visual examines audio-visual synchronization
+                'spatial': 0.5,   # Spatial analysis often provides good per-frame accuracy
+                'audio_visual': 0.5  # Audio-visual examines audio-visual synchronization
             }
         
         # Normalize weights to sum to 1
