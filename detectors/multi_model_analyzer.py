@@ -149,32 +149,14 @@ class MultiModelAnalyzer:
             # Collect frames with detections
             if "frames_with_detections" in result:
                 for frame_data in result["frames_with_detections"]:
-                    try:
-                        # Check if frame_data is a tuple
-                        if not isinstance(frame_data, tuple):
-                            st.warning(f"Skipping non-tuple frame data from {model_type} model: {type(frame_data)}")
-                            continue
-                            
-                        # Handle different tuple structures
-                        if len(frame_data) == 3:
-                            # Standard 3-tuple: (frame_idx, frame, prob)
-                            frame_idx, frame, prob = frame_data
-                            combined_frames_with_detections.append((frame_idx, frame, prob, model_type))
-                        elif len(frame_data) == 4:
-                            # Already has model_type (frame_idx, frame, prob, model_type)
-                            combined_frames_with_detections.append(frame_data)
-                        elif len(frame_data) == 2 and isinstance(frame_data[0], (int, np.integer)) and isinstance(frame_data[1], np.ndarray):
-                            # Missing probability (frame_idx, frame)
-                            frame_idx, frame = frame_data
-                            # Use a default probability
-                            combined_frames_with_detections.append((frame_idx, frame, 0.5, model_type))
-                        else:
-                            # Skip invalid data
-                            st.warning(f"Skipping invalid frame data structure from {model_type} model")
-                    except Exception as e:
-                        st.error(f"Error processing frame data from {model_type} model: {e}")
-                        # Continue processing other frames
-                        continue
+                    # Make sure all frame data has model_type
+                    # Check if frame_data already has model_type (is a 4-tuple)
+                    if len(frame_data) == 3:
+                        # frame_data is a tuple of (frame_idx, frame, prob)
+                        combined_frames_with_detections.append((frame_data[0], frame_data[1], frame_data[2], model_type))
+                    else:
+                        # Already has model_type or other format, add as is
+                        combined_frames_with_detections.append(frame_data)
         
         # Final determination based on weighted score
         final_is_deepfake = weighted_deepfake_score > 0

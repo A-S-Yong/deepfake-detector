@@ -534,7 +534,7 @@ elif page == "Upload Video":
                 st.markdown("#### Adjust Model Weights")
                 st.markdown("You can adjust how much each model contributes to the final decision:")
                 
-                col1, col2, col3 = st.columns(2)
+                col1, col2 = st.columns(2)
                 with col1:
                     weights["spatial"] = st.slider("Spatial Weight", 0.0, 1.0, 0.4, 0.1)
                 with col2:
