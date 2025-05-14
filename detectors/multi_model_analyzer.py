@@ -68,9 +68,8 @@ class MultiModelAnalyzer:
                 'audio_visual': 0.5  # Audio-visual examines audio-visual synchronization
             }
         
-        # Normalize weights to sum to 1
-        total_weight = sum(weights.values())
-        normalized_weights = {k: v / total_weight for k, v in weights.items()}
+        # Use weights directly as they're already normalized in the UI
+        normalized_weights = weights.copy() 
         
         # Extract metadata once
         video_metadata = extract_video_metadata(video_path)
