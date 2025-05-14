@@ -3,7 +3,7 @@
 ## Introduction
 Our deepfake detection web application leverages a multi modal approach to identify manipulated video content by combining cutting edge spatial and audio visual analysis techniques. By integrating advanced deep learning architectures such as the Swin Transformer, fine tuned Xception, ResNet 18, and Wav2Vec2, the system captures visual artifacts and audio visual misalignments that commonly arise in deepfake forgeries. Each model contributes unique strengths including frame level artifact detection, modality synchronization analysis, and ensemble learning to achieve high classification accuracy and robust generalization across diverse datasets. This web based solution offers a scalable and effective tool for real time detection of forged media, helping users safeguard against misinformation and media manipulation.
 
-## Multi-Mdodal Approach
+## Multi-Modal Approach
 ### Spatial Analysis
 In our deepfake detection project, spatial analysis plays a critical role in identifying forged content based on visual inconsistencies within individual video frames. Unlike temporal or audio-visual analysis, which examine motion and sound over time, spatial analysis focuses solely on still-image features. Deepfake forgeries often introduce subtle artifacts such as unnatural facial blending, inconsistent lighting, or irregular textures that can be detected by sophisticated image classification models, even when they are imperceptible to the human eye.
 
