@@ -472,7 +472,7 @@ if page == "Home":
     st.markdown("""
     <div style="background-color: #f8f9fa; color: #333333; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
         <h4>Combined Model Approach</h4>
-        <p>Our ensemble analysis runs <strong>all three models simultaneously</strong> and combines their results for a more robust detection.</p>
+        <p>Our ensemble analysis runs <strong>both models simultaneously</strong> and combines their results for a more robust detection.</p>
         <ul>
             <li><strong>Higher accuracy:</strong> Leverages the strengths of each individual model</li>
             <li><strong>Customizable weights:</strong> Adjust how much each model contributes to the final decision</li>

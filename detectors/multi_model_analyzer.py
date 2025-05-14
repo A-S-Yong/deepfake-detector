@@ -47,7 +47,7 @@ class MultiModelAnalyzer:
     def analyze_video(self, video_path: str, max_frames: int = 30, 
                       weights: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
         """
-        Analyze a video using all three models and combine the results
+        Analyze a video using both models and combine the results
         
         Args:
             video_path: Path to the video file
